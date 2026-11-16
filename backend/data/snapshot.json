@@ -1,0 +1,14 @@
+{
+  "source": "https://factmaps.sodir.no/api/rest/services/DataService/Data/FeatureServer",
+  "licence": "NLOD 2.0",
+  "downloaded_at": "2026-11-15T13:13:43+00:00",
+  "last_month": "2026-08",
+  "last_full_year": 2025,
+  "fields": 142,
+  "fields_without_outline": [
+    "Sindre"
+  ],
+  "production_rows": 28442,
+  "rows_with_negative_adjustments": 189,
+  "attribution": "Data from the Norwegian Offshore Directorate (Sodir), Norwegian Licence for Open Government Data (NLOD)."
+}
