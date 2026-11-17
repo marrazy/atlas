@@ -74,6 +74,26 @@ describe('shelfOption', () => {
   })
 })
 
+describe('year line', () => {
+  type MarkLine = { data: { xAxis: string }[]; label: { formatter: string; color: string; backgroundColor: string } }
+  const lineOf = (o: ReturnType<typeof shelfOption>) => (o.series[0] as unknown as { markLine: MarkLine }).markLine
+
+  it('marks the year chosen on the map with a line and the year in a box', () => {
+    const line = lineOf(shelfOption(shelf, 1972))
+    expect(line.data).toEqual([{ xAxis: '1972' }])
+    expect(line.label.formatter).toBe('1972')
+  })
+
+  it('draws no line before a year is chosen', () => {
+    expect(lineOf(shelfOption(shelf)).data).toEqual([])
+  })
+
+  it('writes the year in dark text on a light box, above 4.5 to 1', () => {
+    const { label } = lineOf(shelfOption(shelf, 1972))
+    expect(contrast(label.color, label.backgroundColor)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
 describe('shelfTooltip', () => {
   const text = (year: string) =>
     new DOMParser().parseFromString(shelfTooltip(shelf.years)([{ name: year }]), 'text/html').body.textContent

@@ -1,12 +1,13 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { fieldPoints } from '@/lib/map/shelf-map'
 import { fields } from '@/test/fixtures'
 import { AttributionControl, Map, Popup, setWorkerUrl } from '@/test/maplibre-stub'
 import ShelfMap from './ShelfMap'
 
-function renderMap() {
+function renderMap(year = 2012) {
   const onSelectField = vi.fn()
-  const view = render(<ShelfMap fields={fields} onSelectField={onSelectField} />)
+  const view = render(<ShelfMap fields={fields} year={year} onSelectField={onSelectField} />)
   return { map: Map.last!, onSelectField, ...view }
 }
 
@@ -30,18 +31,32 @@ describe('ShelfMap', () => {
     expect(credit.options.customAttribution).toBe('MapLibre · Fields © Sodir (NLOD) · Coastline: Natural Earth')
   })
 
-  it('describes the map to screen readers', () => {
+  it('describes the map to screen readers, for the chosen year', () => {
     const { map } = renderMap()
-    expect(map.canvas.getAttribute('aria-label')).toMatch(/^Map of the Norwegian Continental Shelf with 2 fields/)
+    expect(map.canvas.getAttribute('aria-label')).toMatch(/^Map of the Norwegian Continental Shelf in 2012, with 2 fields/)
+  })
+
+  it('starts with the circles for the chosen year', () => {
+    const { map } = renderMap(2020)
+    const data = (map.options.style as { sources: { fields: { data: ReturnType<typeof fieldPoints> } } }).sources.fields.data
+    expect(data).toEqual(fieldPoints(fields, 2020))
+  })
+
+  it('changes the circles and the description when the year changes, without making a new map', () => {
+    const { map, rerender } = renderMap(2012)
+    rerender(<ShelfMap fields={fields} year={2020} onSelectField={vi.fn()} />)
+    expect(Map.last).toBe(map)
+    expect(map.fieldsSource.setData).toHaveBeenLastCalledWith(fieldPoints(fields, 2020))
+    expect(map.canvas.getAttribute('aria-label')).toMatch(/in 2020, .* 0 produced that year, 1 had stopped/)
   })
 
   it('shows the field text when the pointer is over a circle, and hides it when it leaves', () => {
     const { map } = renderMap()
     const props = { field_id: 3420717, hover: 'Volve · oil · first production 2008' }
-    map.fire('mousemove', 'fields-shut-down', { features: [{ properties: props }], lngLat: { lng: 1.9, lat: 58.4 } })
+    map.fire('mousemove', 'fields-stopped', { features: [{ properties: props }], lngLat: { lng: 1.9, lat: 58.4 } })
     expect(Popup.last!.text).toBe('Volve · oil · first production 2008')
     expect(Popup.last!.added).toBe(true)
-    map.fire('mouseleave', 'fields-shut-down')
+    map.fire('mouseleave', 'fields-stopped')
     expect(Popup.last!.added).toBe(false)
   })
 

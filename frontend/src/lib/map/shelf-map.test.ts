@@ -10,6 +10,8 @@ import {
   fieldHoverText,
   fieldKind,
   fieldPoints,
+  producingCount,
+  producingNotMapped,
   shelfMapStyle,
 } from './shelf-map'
 
@@ -17,14 +19,33 @@ const [volve, sindre, berling] = fields
 const field = (changes: Partial<FieldSummary>): FieldSummary => ({ ...volve, ...changes })
 
 describe('fieldKind', () => {
-  it('sorts fields into producing, shut down, and never produced', () => {
-    expect(fieldKind(field({ status: 'Producing' }))).toBe('producing')
-    expect(fieldKind(volve)).toBe('shut-down')
-    expect(fieldKind(berling)).toBe('no-production')
+  it('sorts fields by the chosen year: producing that year, stopped before it, or not started yet', () => {
+    expect(fieldKind(volve, 2012)).toBe('producing')
+    expect(fieldKind(volve, 2020)).toBe('stopped')
+    expect(fieldKind(volve, 2000)).toBe('not-yet')
+    expect(fieldKind(berling, 2025)).toBe('not-yet')
   })
 
-  it('treats an approved field that produced before by its production, not its status (Vest Ekofisk)', () => {
-    expect(fieldKind(field({ status: 'Approved for production', producing_years: [1977] }))).toBe('producing')
+  it('counts a year with no production between producing years as stopped (Sindre in 2020)', () => {
+    expect(fieldKind(sindre, 2020)).toBe('stopped')
+    expect(fieldKind(sindre, 2021)).toBe('producing')
+  })
+
+  it('goes by production, not by status (Vest Ekofisk is "approved" but produced in 1977)', () => {
+    expect(fieldKind(field({ status: 'Approved for production', producing_years: [1977] }), 1977)).toBe('producing')
+  })
+})
+
+describe('producingCount and producingNotMapped', () => {
+  it('counts every field with production in the year, mapped or not', () => {
+    expect(producingCount(fields, 2012)).toBe(1)
+    expect(producingCount(fields, 2025)).toBe(1)
+    expect(producingCount(fields, 2020)).toBe(0)
+  })
+
+  it('counts the producing fields that have no location, so the page can say why the map shows fewer', () => {
+    expect(producingNotMapped(fields, 2025)).toBe(1)
+    expect(producingNotMapped(fields, 2012)).toBe(0)
   })
 })
 
@@ -56,7 +77,7 @@ describe('fieldHoverText', () => {
 })
 
 describe('fieldPoints', () => {
-  const points = fieldPoints(fields)
+  const points = fieldPoints(fields, 2012)
 
   it('puts every field with a location on the map, and skips Sindre, which has none', () => {
     expect(points.features.map((f) => f.properties.name).sort()).toEqual(['Berling', 'Volve'])
@@ -65,6 +86,13 @@ describe('fieldPoints', () => {
   it('places each point at the API location, as [longitude, latitude]', () => {
     const v = points.features.find((f) => f.properties.name === 'Volve')!
     expect(v.geometry.coordinates).toEqual([1.886, 58.4385])
+  })
+
+  it('marks each point with its kind in the chosen year', () => {
+    const kinds = Object.fromEntries(points.features.map((f) => [f.properties.name, f.properties.kind]))
+    expect(kinds).toEqual({ Volve: 'producing', Berling: 'not-yet' })
+    const later = fieldPoints(fields, 2020).features.find((f) => f.properties.name === 'Volve')!
+    expect(later.properties.kind).toBe('stopped')
   })
 
   it('draws the smallest first, so large circles never hide small ones underneath', () => {
@@ -79,7 +107,7 @@ describe('fieldPoints', () => {
 })
 
 describe('shelfMapStyle', () => {
-  const style = shelfMapStyle('/assets/land.geojson', fieldPoints(fields))
+  const style = shelfMapStyle('/assets/land.geojson', fieldPoints(fields, 2012))
   const text = JSON.stringify(style)
 
   it('loads nothing from other sites: no tile server, fonts or icons', () => {
@@ -89,10 +117,11 @@ describe('shelfMapStyle', () => {
     expect(style.sources.land.data).toBe('/assets/land.geojson')
   })
 
-  it('draws shut down fields as rings and producing fields as filled circles', () => {
+  it('draws stopped and not-yet fields as rings, and producing fields as filled circles', () => {
     const layer = (id: string) => style.layers.find((l) => l.id === id) as { filter: unknown; paint: Record<string, unknown> }
-    expect(layer('fields-shut-down').filter).toEqual(['==', ['get', 'kind'], 'shut-down'])
-    expect(layer('fields-shut-down').paint['circle-stroke-width']).toBe(2)
+    expect(layer('fields-stopped').filter).toEqual(['==', ['get', 'kind'], 'stopped'])
+    expect(layer('fields-stopped').paint['circle-stroke-width']).toBe(2)
+    expect(layer('fields-not-yet').filter).toEqual(['==', ['get', 'kind'], 'not-yet'])
     expect(layer('fields-producing').paint['circle-color']).toEqual(['match', ['get', 'product'], 'oil', CHART_COLOURS.oil, CHART_COLOURS.gas])
   })
 
@@ -100,9 +129,9 @@ describe('shelfMapStyle', () => {
     expect(style.layers.at(-1)!.id).toBe('fields-producing')
   })
 
-  it('describes the map for screen readers with the number of fields', () => {
-    expect(describeShelfMap(fieldPoints(fields))).toBe(
-      'Map of the Norwegian Continental Shelf with 2 fields as circles sized by total production, coloured by main product, with shut down fields as rings.',
+  it('describes the map for screen readers, with the counts for the chosen year', () => {
+    expect(describeShelfMap(fieldPoints(fields, 2020), 2020)).toBe(
+      'Map of the Norwegian Continental Shelf in 2020, with 2 fields as circles sized by total production and coloured by main product. 0 produced that year, 1 had stopped, and 1 had not started.',
     )
   })
 })

@@ -14,11 +14,25 @@ export const MAP_COLOURS = {
 const MIN_RADIUS = 4
 const MAX_RADIUS = 22
 
-export type FieldKind = 'producing' | 'shut-down' | 'no-production'
+/**
+ * How a field is drawn for a year, from its production years only:
+ * produced that year, produced before but not that year (shut down or paused), or not started yet.
+ */
+export type FieldKind = 'producing' | 'stopped' | 'not-yet'
 
-export function fieldKind(field: FieldSummary): FieldKind {
-  if (field.producing_years.length === 0) return 'no-production'
-  return field.status === 'Shut down' ? 'shut-down' : 'producing'
+export function fieldKind(field: FieldSummary, year: number): FieldKind {
+  if (field.producing_years.includes(year)) return 'producing'
+  return field.producing_years.some((y) => y < year) ? 'stopped' : 'not-yet'
+}
+
+/** How many fields had any production in the year, the count shown under the year slider. */
+export function producingCount(fields: FieldSummary[], year: number): number {
+  return fields.filter((f) => f.producing_years.includes(year)).length
+}
+
+/** Fields that produced in the year but have no location in the data, so they have no circle (Sindre). */
+export function producingNotMapped(fields: FieldSummary[], year: number): number {
+  return fields.filter((f) => f.producing_years.includes(year) && (f.lon === null || f.lat === null)).length
 }
 
 /** Circle area grows with total production, so the radius grows with its square root. */
@@ -45,8 +59,8 @@ export type FieldFeatureProperties = {
   hover: string
 }
 
-/** The fields that have a location, as map points, largest drawn last so they sit on top. */
-export function fieldPoints(fields: FieldSummary[]) {
+/** The fields that have a location, as map points for a year, largest drawn last so they sit on top. */
+export function fieldPoints(fields: FieldSummary[], year: number) {
   const located = fields.filter((f) => f.lon !== null && f.lat !== null)
   const largest = Math.max(0, ...located.map((f) => f.cum_oe_net_msm3))
   const features = located
@@ -57,7 +71,7 @@ export function fieldPoints(fields: FieldSummary[]) {
         field_id: f.field_id,
         name: f.name,
         product: f.main_product,
-        kind: fieldKind(f),
+        kind: fieldKind(f, year),
         radius: circleRadius(f.cum_oe_net_msm3, largest),
         hover: fieldHoverText(f),
       } satisfies FieldFeatureProperties,
@@ -123,7 +137,7 @@ export function shelfMapStyle(landUrl: string, points: ReturnType<typeof fieldPo
         id: 'fields-not-yet',
         type: 'circle' as const,
         source: 'fields',
-        filter: kindIs('no-production'),
+        filter: kindIs('not-yet'),
         paint: {
           'circle-radius': ['get', 'radius'],
           'circle-color': MAP_COLOURS.sea,
@@ -133,10 +147,10 @@ export function shelfMapStyle(landUrl: string, points: ReturnType<typeof fieldPo
         },
       },
       {
-        id: 'fields-shut-down',
+        id: 'fields-stopped',
         type: 'circle' as const,
         source: 'fields',
-        filter: kindIs('shut-down'),
+        filter: kindIs('stopped'),
         paint: {
           'circle-radius': ['get', 'radius'],
           'circle-color': MAP_COLOURS.sea,
@@ -161,8 +175,9 @@ export function shelfMapStyle(landUrl: string, points: ReturnType<typeof fieldPo
   }
 }
 
-export const FIELD_LAYERS = ['fields-producing', 'fields-shut-down', 'fields-not-yet']
+export const FIELD_LAYERS = ['fields-producing', 'fields-stopped', 'fields-not-yet']
 
-export function describeShelfMap(points: ReturnType<typeof fieldPoints>): string {
-  return `Map of the Norwegian Continental Shelf with ${points.features.length} fields as circles sized by total production, coloured by main product, with shut down fields as rings.`
+export function describeShelfMap(points: ReturnType<typeof fieldPoints>, year: number): string {
+  const count = (kind: FieldKind) => points.features.filter((f) => f.properties.kind === kind).length
+  return `Map of the Norwegian Continental Shelf in ${year}, with ${points.features.length} fields as circles sized by total production and coloured by main product. ${count('producing')} produced that year, ${count('stopped')} had stopped, and ${count('not-yet')} had not started.`
 }

@@ -15,6 +15,7 @@ export class Map {
   fitBounds = vi.fn()
   resize = vi.fn()
   remove = vi.fn()
+  fieldsSource = { setData: vi.fn() }
   touchZoomRotate = { disableRotation: vi.fn() }
   keyboard = { disableRotation: vi.fn() }
 
@@ -36,6 +37,9 @@ export class Map {
   /** Calls the handlers for an event, for example a mouse move over one of the field layers. */
   fire(event: string, layer: string | undefined, payload: unknown = {}) {
     for (const h of this.handlers) if (h.event === event && h.layer === layer) h.fn(payload)
+  }
+  getSource(id: string) {
+    return id === 'fields' ? this.fieldsSource : undefined
   }
   getCanvas() {
     return this.canvas

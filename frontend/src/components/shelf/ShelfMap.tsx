@@ -41,18 +41,27 @@ function MapButton({ label, icon: Icon, onClick }: { label: string; icon: Lucide
 
 type Props = {
   fields: FieldSummary[]
+  /** The year the circles are drawn for. */
+  year: number
   /** Called when a field circle is clicked. */
   onSelectField: (fieldId: number) => void
 }
 
-export default function ShelfMap({ fields, onSelectField }: Props) {
+export default function ShelfMap({ fields, year, onSelectField }: Props) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const selectField = useEffectEvent(onSelectField)
   const [overlay, setOverlay] = useState<Overlay>({ lat: [], places: [] })
 
-  const points = useMemo(() => fieldPoints(fields), [fields])
   const bounds = useMemo(() => fieldBounds(fields), [fields])
+
+  /** Draws the circles for the current year. Only the field data changes, the map itself stays. */
+  const showYear = useEffectEvent((map: maplibregl.Map) => {
+    const points = fieldPoints(fields, year)
+    ;(map.getSource('fields') as maplibregl.GeoJSONSource | undefined)?.setData(points)
+    map.getCanvas().setAttribute('aria-label', describeShelfMap(points, year))
+  })
+  const firstPoints = useEffectEvent(() => fieldPoints(fields, year))
 
   useEffect(() => {
     if (!container.current || !bounds) return
@@ -61,7 +70,7 @@ export default function ShelfMap({ fields, onSelectField }: Props) {
     maplibregl.setWorkerUrl(workerUrl)
     const map = new maplibregl.Map({
       container: container.current,
-      style: shelfMapStyle(landUrl, points) as maplibregl.StyleSpecification,
+      style: shelfMapStyle(landUrl, firstPoints()) as maplibregl.StyleSpecification,
       bounds,
       fitBoundsOptions: { padding: FIT_PADDING },
       // wide enough that a short, wide card can still fit 56°N to 72°N; it only stops panning far away
@@ -78,7 +87,6 @@ export default function ShelfMap({ fields, onSelectField }: Props) {
     map.keyboard.disableRotation()
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
     map.addControl(new maplibregl.AttributionControl({ compact: false, customAttribution: ATTRIBUTION }), 'bottom-right')
-    map.getCanvas().setAttribute('aria-label', describeShelfMap(points))
 
     const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 })
     for (const layer of FIELD_LAYERS) {
@@ -111,15 +119,21 @@ export default function ShelfMap({ fields, onSelectField }: Props) {
       // the card can change size while the map file loads, so fit all fields again once the map is ready
       map.resize()
       map.fitBounds(bounds, { padding: FIT_PADDING, animate: false })
+      showYear(map)
       place()
     })
+    showYear(map)
 
     return () => {
       popup.remove()
       map.remove()
       mapRef.current = null
     }
-  }, [points, bounds])
+  }, [bounds])
+
+  useEffect(() => {
+    if (mapRef.current) showYear(mapRef.current)
+  }, [fields, year])
 
   const animate = () => !prefersReducedMotion()
   const zoomIn = () => mapRef.current?.zoomIn({ animate: animate() })

@@ -41,7 +41,30 @@ function areaLabelPoints(years: ShelfYear[]) {
   }
 }
 
-export function shelfOption(shelf: ShelfSummary) {
+/** The dashed line and year box that follow the map's year slider. */
+function yearLine(year: number | null) {
+  return {
+    silent: true,
+    symbol: 'none',
+    animationDurationUpdate: 150,
+    lineStyle: { color: C.foreground, type: [4, 3], width: 1 },
+    label: {
+      show: true,
+      position: 'start' as const,
+      formatter: String(year),
+      color: C.background,
+      backgroundColor: C.foreground,
+      padding: [3, 6],
+      borderRadius: 4,
+      fontFamily: F.mono,
+      fontSize: 11,
+      fontWeight: 600,
+    },
+    data: year === null ? [] : [{ xAxis: String(year) }],
+  }
+}
+
+export function shelfOption(shelf: ShelfSummary, year: number | null = null) {
   const years = shelf.years
   const labels = areaLabelPoints(years)
   const axisText = { color: C.mutedForeground, fontFamily: F.mono, fontSize: 11 }
@@ -104,6 +127,7 @@ export function shelfOption(shelf: ShelfSummary) {
         itemStyle: { color: C.oil },
         areaStyle: { color: C.oil, opacity: 0.9 },
         markPoint: { silent: true, data: [areaName('Oil', labels.oil.coord)] },
+        markLine: yearLine(year),
       },
       {
         name: 'Gas',

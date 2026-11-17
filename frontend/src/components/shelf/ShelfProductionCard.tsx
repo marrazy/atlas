@@ -22,9 +22,15 @@ function Swatch({ colour, label }: { colour: string; label: string }) {
   )
 }
 
-export function ShelfProductionCard({ shelf }: { shelf: ApiState<ShelfSummary> }) {
+type Props = {
+  shelf: ApiState<ShelfSummary>
+  /** The year chosen on the map, marked with a line. */
+  year?: number | null
+}
+
+export function ShelfProductionCard({ shelf, year = null }: Props) {
   const chart = useRef<EChartHandle>(null)
-  const option = useMemo(() => (shelf.status === 'ready' ? shelfOption(shelf.data) : null), [shelf])
+  const option = useMemo(() => (shelf.status === 'ready' ? shelfOption(shelf.data, year) : null), [shelf, year])
 
   const actions = option && (
     <ChartToolButton
@@ -48,7 +54,7 @@ export function ShelfProductionCard({ shelf }: { shelf: ApiState<ShelfSummary> }
             <Swatch colour={CHART_COLOURS.oil} label="Oil, NGL and condensate" />
             <Swatch colour={CHART_COLOURS.gas} label="Gas" />
           </div>
-          <EChart option={option} height={CHART_HEIGHT} chartRef={chart} />
+          <EChart option={option} height={CHART_HEIGHT} chartRef={chart} replace={false} />
         </>
       )}
     </ChartCard>

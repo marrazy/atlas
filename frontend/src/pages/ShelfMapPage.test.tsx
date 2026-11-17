@@ -1,5 +1,6 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { fakeChart } from '@/test/echarts-stub'
 import { fields, shelf, snapshot } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
 import { renderApp, setWindowWidth } from '@/test/render-app'
@@ -67,5 +68,24 @@ describe('Shelf map page', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Shelf production by year' })).toBeInTheDocument()
     expect(await screen.findByRole('img', { name: /^Stacked area chart of yearly saleable production/ })).toBeInTheDocument()
     expect(screen.getByText('Oil, NGL and condensate')).toBeInTheDocument()
+  })
+
+  it('starts the year slider on the last full year from /api/snapshot, and the chart line follows it', async () => {
+    renderApp('/')
+    const slider = await screen.findByRole('slider', { name: 'Year' })
+    expect(slider).toHaveValue('2025')
+    const lineYear = () =>
+      (fakeChart.lastOption as { series: { markLine?: { data: { xAxis: string }[] } }[] }).series[0].markLine?.data[0]?.xAxis
+    await waitFor(() => expect(lineYear()).toBe('2025'))
+
+    fireEvent.change(slider, { target: { value: '2012' } })
+    expect(screen.getByText('1 field had production in 2012.')).toBeInTheDocument()
+    await waitFor(() => expect(lineYear()).toBe('2012'))
+  })
+
+  it('updates the chart in place, so the year line moves without redrawing the areas', async () => {
+    renderApp('/')
+    await screen.findByRole('img', { name: /^Stacked area chart/ })
+    expect(fakeChart.lastNotMerge).toBe(false)
   })
 })

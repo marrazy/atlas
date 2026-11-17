@@ -15,6 +15,16 @@ export function fieldCounts(fields: FieldSummary[]): FieldCounts {
   }
 }
 
+/**
+ * The years the slider covers: from the first year any field produced to the last full year in the
+ * snapshot, so the unfinished current year is left out, as in the shelf chart. 1971 to 2025.
+ */
+export function yearRange(fields: FieldSummary[], lastFullYear: number): [number, number] | null {
+  const years = fields.flatMap((f) => f.producing_years).filter((y) => y <= lastFullYear)
+  if (years.length === 0) return null
+  return [Math.min(...years), Math.max(...years)]
+}
+
 /** The field with the earliest first production year, with that year. Ekofisk, 1971. */
 export function firstField(fields: FieldSummary[]): { name: string; year: number } | null {
   let first: { name: string; year: number } | null = null

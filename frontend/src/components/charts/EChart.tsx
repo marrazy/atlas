@@ -34,13 +34,18 @@ type EChartProps = {
   option: object
   height: number
   chartRef?: Ref<EChartHandle>
+  /**
+   * True (the default) draws each new option from scratch. False merges it into the chart that is
+   * already there, so a small change such as a moving year line does not redraw everything.
+   */
+  replace?: boolean
 }
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export function EChart({ option, height, chartRef }: EChartProps) {
+export function EChart({ option, height, chartRef, replace = true }: EChartProps) {
   const fontsReady = useChartFonts()
   const shown = useMemo(() => (prefersReducedMotion() ? { ...option, animation: false } : option), [option])
   if (!fontsReady) return <Skeleton style={{ height }} className="w-full" />
@@ -50,7 +55,7 @@ export function EChart({ option, height, chartRef }: EChartProps) {
       ref={chartRef}
       echarts={echarts}
       option={shown}
-      notMerge
+      notMerge={replace}
       style={{ height, width: '100%' }}
       opts={{ renderer: 'canvas' }}
     />
