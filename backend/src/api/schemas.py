@@ -15,3 +15,14 @@ class FieldSummary(BaseModel):
     cum_oe_net_msm3: float = Field(description="Total saleable production, million Sm3 oil equivalent")
     producing_years: list[int] = Field(description="Years with any production, for the map's year slider")
 
+class FieldDetail(FieldSummary):
+    hc_type: str = Field(description="Sodir's hydrocarbon type, for example 'OIL' or 'GAS/CONDENSATE'")
+    main_area: str = Field(description="'North sea', 'Norwegian sea' or 'Barents sea'")
+    operator_full: str | None = Field(description="Operator's full company name")
+    discovery_year: int | None
+    cum_liquids_net_msm3: float = Field(description="Total saleable oil, NGL and condensate, million Sm3")
+    cum_gas_net_bsm3: float = Field(description="Total saleable gas, billion Sm3")
+    total_oil_gross_mmbbl: float = Field(description="Total gross oil, million barrels")
+    peak_oil_rate: float | None = Field(description="Highest monthly gross oil rate, Sm3 per day. Empty if no oil.")
+    peak_oil_month: str | None = Field(description="Month of the peak, as YYYY-MM")
+    factpage_url: str = Field(description="The field's page on Sodir FactPages")

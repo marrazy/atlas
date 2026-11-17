@@ -1,3 +1,5 @@
+import pytest
+
 from conftest import VOLVE
 
 
@@ -117,3 +119,51 @@ def test_outlines_are_compressed_and_cached(client):
     r = client.get("/api/fields/outlines", headers={"Accept-Encoding": "gzip"})
     assert r.headers["content-encoding"] == "gzip"
     assert r.headers["cache-control"] == "public, max-age=86400"
+
+# GET /fields/{field_id}
+
+def test_field_detail_volve(client):
+    body = client.get(f"/api/fields/{VOLVE}").json()
+    assert body["name"] == "Volve"
+    assert body["main_area"] == "North sea"
+    assert body["discovery_year"] == 1993
+    assert body["factpage_url"].startswith("https://factpages.sodir.no")
+
+
+def test_field_detail_volve_matches_equinor(client):
+    body = client.get(f"/api/fields/{VOLVE}").json()
+    # Equinor reports about 63 million barrels in total, and a plateau of about 56,000 barrels a day
+    assert body["total_oil_gross_mmbbl"] == pytest.approx(63.3, abs=0.5)
+    assert body["peak_oil_rate"] * 6.2898 == pytest.approx(56_000, rel=0.02)
+    assert body["peak_oil_month"] == "2008-12"
+
+
+def test_field_detail_includes_the_summary(client):
+    # the detail must agree with the field's entry in the list
+    summary = next(f for f in client.get("/api/fields").json() if f["field_id"] == VOLVE)
+    detail = client.get(f"/api/fields/{VOLVE}").json()
+    assert {k: detail[k] for k in summary} == summary
+
+
+def test_field_detail_without_production(client):
+    fields = client.get("/api/fields").json()
+    berling = next(f for f in fields if f["name"] == "Berling")
+    body = client.get(f"/api/fields/{berling['field_id']}").json()
+    assert body["total_oil_gross_mmbbl"] == 0
+    assert body["peak_oil_rate"] is None
+    assert body["peak_oil_month"] is None
+
+
+def test_field_detail_unknown_id_is_404(client):
+    r = client.get("/api/fields/1")
+    assert r.status_code == 404
+    assert r.json() == {"detail": "no field with id 1"}
+
+
+def test_field_detail_id_must_be_a_number(client):
+    assert client.get("/api/fields/volve").status_code == 422
+
+
+def test_outlines_still_reach_their_own_route(client):
+    # /fields/outlines must not be read as /fields/{field_id}
+    assert client.get("/api/fields/outlines").status_code == 200
