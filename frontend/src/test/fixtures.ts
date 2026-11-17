@@ -284,3 +284,34 @@ export const apiErrors = {
     },
   },
 } as const
+
+// Volve, August 2014 to September 2016: the two years before its decline fit window, the window
+// (April 2015 to August 2016) and the shutdown month. Real API values.
+export const volveLateProduction = [
+  { month: '2014-08', oil_rate: 1592.8, gas_rate: 246677, gor: 154.9, oe_net_msm3: 0.051876 },
+  { month: '2014-09', oil_rate: 2079.6, gas_rate: 326267, gor: 156.9, oe_net_msm3: 0.064239 },
+  { month: '2014-10', oil_rate: 2081.1, gas_rate: 321871, gor: 154.7, oe_net_msm3: 0.06623 },
+  { month: '2014-11', oil_rate: 1764.0, gas_rate: 275767, gor: 156.3, oe_net_msm3: 0.054994 },
+  { month: '2014-12', oil_rate: 591.4, gas_rate: 120032, gor: 203.0, oe_net_msm3: 0.02024 },
+  { month: '2015-01', oil_rate: 2620.8, gas_rate: 386452, gor: 147.5, oe_net_msm3: 0.086984 },
+  { month: '2015-02', oil_rate: 2366.9, gas_rate: 358071, gor: 151.3, oe_net_msm3: 0.070885 },
+  { month: '2015-03', oil_rate: 2636.7, gas_rate: 388161, gor: 147.2, oe_net_msm3: 0.084618 },
+  { month: '2015-04', oil_rate: 3007.5, gas_rate: 438500, gor: 145.8, oe_net_msm3: 0.092078 },
+  { month: '2015-05', oil_rate: 2808.5, gas_rate: 409710, gor: 145.9, oe_net_msm3: 0.089668 },
+  { month: '2015-06', oil_rate: 2794.9, gas_rate: 409233, gor: 146.4, oe_net_msm3: 0.08617 },
+  { month: '2015-07', oil_rate: 2386.9, gas_rate: 354839, gor: 148.7, oe_net_msm3: 0.0768 },
+  { month: '2015-08', oil_rate: 1816.0, gas_rate: 275000, gor: 151.4, oe_net_msm3: 0.058063 },
+  { month: '2015-09', oil_rate: 2103.2, gas_rate: 317267, gor: 150.8, oe_net_msm3: 0.065158 },
+  { month: '2015-10', oil_rate: 1860.7, gas_rate: 283548, gor: 152.4, oe_net_msm3: 0.060032 },
+  { month: '2015-11', oil_rate: 2015.6, gas_rate: 308533, gor: 153.1, oe_net_msm3: 0.06213 },
+  { month: '2015-12', oil_rate: 1929.5, gas_rate: 295613, gor: 153.2, oe_net_msm3: 0.062236 },
+  { month: '2016-01', oil_rate: 1663.8, gas_rate: 260516, gor: 156.6, oe_net_msm3: 0.059042 },
+  { month: '2016-02', oil_rate: 1633.4, gas_rate: 257552, gor: 157.7, oe_net_msm3: 0.05417 },
+  { month: '2016-03', oil_rate: 1380.7, gas_rate: 222581, gor: 161.2, oe_net_msm3: 0.049197 },
+  { month: '2016-04', oil_rate: 1077.0, gas_rate: 176267, gor: 163.7, oe_net_msm3: 0.036741 },
+  { month: '2016-05', oil_rate: 1259.0, gas_rate: 200484, gor: 159.2, oe_net_msm3: 0.044074 },
+  { month: '2016-06', oil_rate: 1188.6, gas_rate: 191300, gor: 160.9, oe_net_msm3: 0.040467 },
+  { month: '2016-07', oil_rate: 1001.9, gas_rate: 160968, gor: 160.7, oe_net_msm3: 0.037133 },
+  { month: '2016-08', oil_rate: 805.0, gas_rate: 128742, gor: 159.9, oe_net_msm3: 0.026902 },
+  { month: '2016-09', oil_rate: 287.0, gas_rate: 48633, gor: 169.5, oe_net_msm3: 0.009581 },
+] satisfies ProductionMonth[]

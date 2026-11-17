@@ -184,3 +184,16 @@ describe('tooltipText', () => {
     expect(tooltipText([])).toBe('')
   })
 })
+
+describe('productionOption fit window', () => {
+  it('shades the decline fit window on the oil rate chart when one is given', () => {
+    const shaded = productionOption('Volve', productionSeries(VOLVE)!, { start: '2008-03', end: '2008-05' })
+    expect(shaded.series[0].markArea!.data).toEqual([
+      [{ name: 'Decline fit window', xAxis: monthStart('2008-03') }, { xAxis: monthStart('2008-05') }],
+    ])
+  })
+
+  it('has no shading without a window', () => {
+    expect(productionOption('Volve', productionSeries(VOLVE)!).series[0].markArea).toBeUndefined()
+  })
+})

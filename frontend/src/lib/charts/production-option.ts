@@ -1,4 +1,5 @@
 import type { ProductionMonth, YearMonth } from '@/lib/api/types'
+import type { FitWindow } from '@/lib/decline'
 import { formatCompact, formatMonth, formatNumber, monthOf, monthStart } from '@/lib/format'
 import { CHART_COLOURS as C, CHART_FONTS as F } from './colours'
 
@@ -91,8 +92,16 @@ const axisText = { color: C.mutedForeground, fontFamily: F.mono, fontSize: 11 }
 const axisName = { color: C.mutedForeground, fontFamily: F.sans, fontSize: 11, align: 'left' as const }
 const gridLine = { lineStyle: { color: C.border, type: [3, 3] } }
 
-export function productionOption(fieldName: string, s: ProductionSeries) {
+export function productionOption(fieldName: string, s: ProductionSeries, fitWindow: FitWindow | null = null) {
   const gorLog = gorNeedsLogScale(s.gor)
+  const fitArea = fitWindow
+    ? {
+        silent: true,
+        itemStyle: { color: 'rgba(235, 229, 222, 0.05)' },
+        label: { color: C.mutedForeground, fontFamily: F.sans, fontSize: 11, position: 'insideTopLeft' as const },
+        data: [[{ name: 'Decline fit window', xAxis: monthStart(fitWindow.start) }, { xAxis: monthStart(fitWindow.end) }]],
+      }
+    : undefined
   const min = monthStart(s.first)
   const max = monthStart(s.last)
   const timeAxis = { type: 'time' as const, min, max, axisLine: { lineStyle: { color: C.border } }, axisTick: { show: false } }
@@ -224,6 +233,7 @@ export function productionOption(fieldName: string, s: ProductionSeries) {
         itemStyle: { color: C.oil },
         areaStyle: { color: C.oil, opacity: 0.15 },
         markPoint: peakMark,
+        markArea: fitArea,
       },
       {
         name: 'Gas oil ratio',

@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { FieldDetail, ProductionMonth } from '@/lib/api/types'
-import { fields, snapshot, volve, volveProduction } from '@/test/fixtures'
+import { fields, snapshot, volve, volveDeclineHyperbolic, volveProduction } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
 import { currentPath, renderApp, setWindowWidth } from '@/test/render-app'
 
@@ -33,6 +33,7 @@ const API = {
   '/api/fields/3420717/production': VOLVE_MONTHS,
   '/api/fields/42002473': BERLING,
   '/api/fields/42002473/production': [],
+  '/api/decline-fit': volveDeclineHyperbolic,
 }
 
 /** The texts in one stat card: label, value and note. */
@@ -70,6 +71,12 @@ describe('Volve', () => {
     expect(card('Recovery rate')).toEqual(['Recovery rate', '54%', 'Oil in place recovered, per Equinor'])
   })
 
+  it('shows the decline panel under the production charts', async () => {
+    renderApp('/fields/3420717')
+    expect(await screen.findByText('b hit its lower limit, so this decline is really exponential.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Decline curve forecast' })).toBeInTheDocument()
+  })
+
   it('shows the production charts from the monthly data', async () => {
     renderApp('/fields/3420717')
     expect(await screen.findByRole('img')).toHaveAccessibleName(
@@ -90,6 +97,7 @@ describe('other fields', () => {
     expect(cardLabels()).not.toContain('Recovery rate')
     expect(within(screen.getByRole('main')).getByText('Gas')).toBeInTheDocument()
     expect(screen.getByText('No production reported for this field.')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Decline curve forecast' })).not.toBeInTheDocument()
   })
 
   it('opens another field from the picker', async () => {

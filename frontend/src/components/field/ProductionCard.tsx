@@ -9,6 +9,7 @@ import type { ProductionMonth } from '@/lib/api/types'
 import type { ApiState } from '@/lib/api/use-api'
 import { CHART_COLOURS } from '@/lib/charts/colours'
 import { productionOption, productionSeries } from '@/lib/charts/production-option'
+import type { FitWindow } from '@/lib/decline'
 import { fieldSlug } from '@/lib/field'
 
 const CHART_HEIGHT = 470
@@ -34,16 +35,21 @@ function ToolButton({ label, icon: Icon, onClick, pressed }: ToolButtonProps) {
 type Props = {
   fieldName: string
   production: ApiState<ProductionMonth[]>
+  /** The months the decline panel fits, shaded on the oil rate chart. */
+  fitWindow?: FitWindow | null
 }
 
-export function ProductionCard({ fieldName, production }: Props) {
+export function ProductionCard({ fieldName, production, fitWindow = null }: Props) {
   const chart = useRef<EChartHandle>(null)
   const [areaZoom, setAreaZoom] = useState(false)
   const series = useMemo(
     () => (production.status === 'ready' ? productionSeries(production.data) : null),
     [production],
   )
-  const option = useMemo(() => (series ? productionOption(fieldName, series) : null), [fieldName, series])
+  const option = useMemo(
+    () => (series ? productionOption(fieldName, series, fitWindow) : null),
+    [fieldName, series, fitWindow],
+  )
 
   const instance = () => chart.current?.getEchartsInstance()
 
