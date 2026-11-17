@@ -5,7 +5,12 @@ __pycache__/
 .claude/
 /data/raw
 
+#ai tools
 .claude
+claude.md
+docs/*
+
+
 # C extensions
 *.so
 
@@ -18,6 +23,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!frontend/src/lib/
 lib64/
 parts/
 sdist/
