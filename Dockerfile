@@ -5,7 +5,6 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-# --- Stage 2: backend runtime, serving the API and the built frontend ---
 FROM python:3.14-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.18 /uv /usr/local/bin/uv
 
@@ -15,7 +14,6 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_NO_DEV=1 \
     UV_PYTHON_DOWNLOADS=never
 
-# Dependencies first so they're cached until uv.lock changes
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --locked --no-install-project
 
