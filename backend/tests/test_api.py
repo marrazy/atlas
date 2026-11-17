@@ -257,3 +257,43 @@ def test_investments_field_without_any_is_empty(client):
 
 def test_investments_unknown_field_is_404(client):
     assert client.get("/api/fields/1/investments").status_code == 404
+
+# GET /api/shelf
+
+def test_shelf_covers_every_full_year(client):
+    years = [y["year"] for y in client.get("/api/shelf").json()["years"]]
+    assert years == list(range(1971, 2026))  # 1971 to 2025, no gaps, 2026 is not finished
+
+
+def test_shelf_peak_was_2004(client):
+    body = client.get("/api/shelf").json()
+    assert body["peak_year"] == 2004
+    assert body["peak_oe_net_msm3"] == pytest.approx(264.4, abs=0.5)
+    assert body["peak_oe_net_msm3"] == max(y["oe_net_msm3"] for y in body["years"])
+
+
+def test_shelf_oil_equivalent_is_liquids_plus_gas(client):
+    # Sodir counts 1 billion Sm3 of gas as 1 million Sm3 of oil equivalent
+    for y in client.get("/api/shelf").json()["years"]:
+        assert y["oe_net_msm3"] == pytest.approx(y["liquids_net_msm3"] + y["gas_net_bsm3"], abs=0.01)
+
+
+def test_shelf_first_year_was_ekofisk_only(client):
+    first = client.get("/api/shelf").json()["years"][0]
+    assert first["year"] == 1971
+    assert first["gas_net_bsm3"] == 0  # Ekofisk started with oil only
+
+
+def test_shelf_years_add_up_to_the_fields(client):
+    # the shelf is the sum of the fields, so it must match their totals per year
+    shelf = client.get("/api/shelf").json()
+    full_years_total = sum(y["oe_net_msm3"] for y in shelf["years"])
+    # the overall total also includes 2026 so far, so it must be a bit larger
+    assert shelf["total_oe_net_msm3"] > full_years_total
+    assert shelf["total_oe_net_msm3"] == pytest.approx(9105, abs=5)
+
+
+def test_shelf_producing_fields_now_matches_field_list(client):
+    fields = client.get("/api/fields").json()
+    producing = sum(1 for f in fields if f["status"] == "Producing")
+    assert client.get("/api/shelf").json()["producing_fields_now"] == producing

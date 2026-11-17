@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 
 from . import data
-from .schemas import FieldSummary, FieldDetail, ProductionMonth, InvestmentYear
+from .schemas import FieldSummary, FieldDetail, ProductionMonth, InvestmentYear, ShelfSummary, ShelfYear
 
 router = APIRouter(prefix="/api")
 
@@ -104,3 +104,20 @@ def field_investments(field_id: int) -> list[dict]:
     inv = data.investments()
     inv = inv[inv.field_id == field_id].sort_values("year")
     return [dict(year=int(y), investment_mnok=round(float(v), 1)) for y, v in zip(inv.year, inv.investment_mnok)]
+
+@router.get("/shelf", response_model=ShelfSummary, summary="Yearly production for the whole shelf")
+def shelf() -> dict:
+    columns = ["liquids_net_msm3", "gas_net_bsm3", "oe_net_msm3"]
+    years = data.yearly_by_field().groupby("year", as_index=False)[columns].sum()
+    peak = years.loc[years.oe_net_msm3.idxmax()]
+    return dict(
+        years=[
+            dict(year=int(r.year), liquids_net_msm3=round(r.liquids_net_msm3, 3),
+                 gas_net_bsm3=round(r.gas_net_bsm3, 3), oe_net_msm3=round(r.oe_net_msm3, 3))
+            for r in years.itertuples()
+        ],
+        peak_year=int(peak.year),
+        peak_oe_net_msm3=round(float(peak.oe_net_msm3), 3),
+        total_oe_net_msm3=round(float(data.production().oe_net_msm3.sum()), 1),
+        producing_fields_now=int((data.fields().status == "Producing").sum()),
+    )

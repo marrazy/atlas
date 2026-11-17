@@ -37,6 +37,13 @@ def field_monthly(field_id: int) -> pd.DataFrame:
     p = production()
     return p[p.field_id == field_id].sort_values("date")
 
+@lru_cache
+def yearly_by_field() -> pd.DataFrame:
+    """Saleable production per field and full year. The last, unfinished year is left out."""
+    p = production()
+    p = p[p.year <= snapshot()["last_full_year"]]
+    columns = ["liquids_net_msm3", "gas_net_bsm3", "oe_net_msm3"]
+    return p.groupby(["field_id", "year"], as_index=False)[columns].sum()
 
 @lru_cache
 def producing_years() -> dict[int, list[int]]:

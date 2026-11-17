@@ -38,3 +38,18 @@ class ProductionMonth(BaseModel):
 class InvestmentYear(BaseModel):
     year: int
     investment_mnok: float = Field(description="Million Norwegian kroner, not adjusted for inflation")
+
+class ShelfYear(BaseModel):
+    year: int
+    liquids_net_msm3: float = Field(description="Saleable oil, NGL and condensate, million Sm3")
+    gas_net_bsm3: float = Field(description="Saleable gas, billion Sm3")
+    oe_net_msm3: float = Field(description="Total in oil equivalent, million Sm3. Equals liquids plus gas.")
+
+
+class ShelfSummary(BaseModel):
+    years: list[ShelfYear] = Field(description="Full years only, from 1971")
+    peak_year: int
+    peak_oe_net_msm3: float
+    total_oe_net_msm3: float = Field(description="Everything produced up to the last month in the snapshot, "
+                                                 "million Sm3 oil equivalent")
+    producing_fields_now: int = Field(description="Fields whose current status is 'Producing'")
