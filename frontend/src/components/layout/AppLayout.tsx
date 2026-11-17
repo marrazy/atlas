@@ -31,7 +31,7 @@ export function AppLayout() {
           <AppHeader snapshot={snapshot} />
           <main id="main" tabIndex={-1} className="w-full max-w-[1240px] flex-1 p-6 outline-none">
             <PageLoader resetKey={pathname}>
-              <Outlet />
+              <Outlet context={snapshot} />
             </PageLoader>
           </main>
           <footer className="border-t px-6 py-4 text-xs leading-normal text-muted-foreground md:hidden">

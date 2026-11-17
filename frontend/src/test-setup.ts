@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
 
 vi.mock('echarts-for-react/esm/core', () => import('./test/echarts-stub'))
+vi.mock('maplibre-gl', () => import('./test/maplibre-stub'))
 
 // jsdom has no matchMedia. The sidebar uses it to tell phones from desktops,
 // and reads window.innerWidth for the answer, so tests set innerWidth instead.

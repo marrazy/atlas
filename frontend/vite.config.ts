@@ -11,12 +11,13 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        // ECharts and zrender (the library it draws with) each get their own file. Each is
-        // downloaded only with a screen that has charts, and stays cached when our own code changes.
+        // ECharts, zrender (the library it draws with) and MapLibre each get their own file. Each is
+        // downloaded only with a screen that uses it, and stays cached when our own code changes.
         codeSplitting: {
           groups: [
             { name: 'zrender', test: /node_modules[\\/]zrender[\\/]/, priority: 20 },
             { name: 'echarts', test: /node_modules[\\/]echarts[\\/]/, priority: 10 },
+            { name: 'maplibre', test: /node_modules[\\/]maplibre-gl[\\/]/, priority: 10 },
           ],
         },
       },

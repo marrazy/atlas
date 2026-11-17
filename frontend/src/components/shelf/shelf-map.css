@@ -1,0 +1,30 @@
+@import 'maplibre-gl/dist/maplibre-gl.css';
+
+/* MapLibre's own controls are light by default. These match the atlas theme. */
+.shelf-map .maplibregl-popup-content {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: 12px/1.4 var(--font-sans);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.4);
+}
+.shelf-map .maplibregl-popup-tip {
+  display: none;
+}
+.shelf-map .maplibregl-ctrl-attrib {
+  background: rgb(34 31 30 / 0.85);
+  color: var(--muted-foreground);
+  font: 11px/1.4 var(--font-sans);
+  border-top-left-radius: 6px;
+}
+.shelf-map .maplibregl-ctrl-scale {
+  background: rgb(34 31 30 / 0.8);
+  border-color: var(--foreground);
+  color: var(--foreground);
+  font: 11px/1.4 var(--font-sans);
+}
+.shelf-map .maplibregl-cooperative-gesture-screen {
+  font: 14px/1.4 var(--font-sans);
+}
