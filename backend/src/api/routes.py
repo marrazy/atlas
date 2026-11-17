@@ -7,7 +7,8 @@ from fastapi.responses import FileResponse
 
 
 from . import data
-from .schemas import FieldSummary, FieldDetail, ProductionMonth, InvestmentYear, ShelfSummary, ShelfYear, LifecycleSet
+from .decline import band, fit, remaining_to_limit
+from .schemas import FieldSummary, FieldDetail, ProductionMonth, InvestmentYear, ShelfSummary, ShelfYear, LifecycleSet, DeclineRequest, DeclineResult
 
 router = APIRouter(prefix="/api")
 
@@ -167,3 +168,49 @@ def lifecycles(
               for age, shares in sorted(by_age.items()) if len(shares) >= MIN_FIELDS_FOR_MEDIAN]
 
     return dict(fields=sorted(out, key=lambda life: (life["first_year"], life["name"])), median=median)
+
+@router.post("/decline-fit", response_model=DeclineResult, summary="Fit an Arps decline curve to one field's oil rate")
+def decline_fit(req: DeclineRequest) -> dict:
+    _field_or_404(req.field_id)
+    months = data.field_monthly(req.field_id)
+    start = pd.Timestamp(f"{req.start}-01")
+    end = pd.Timestamp(f"{req.end}-01")
+    window = months[(months.date >= start) & (months.date <= end)]
+    if window.empty:
+        raise HTTPException(status_code=422, detail="no production data in that window")
+
+    # time in whole months from the start of the window
+    t = ((window.date.dt.year - start.year) * 12 + (window.date.dt.month - start.month)).to_numpy()
+    try:
+        f = fit(t, window.oil_rate.to_numpy(), req.model)
+    except ValueError as e:  # too few months with production
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError:  # SciPy could not find a fit
+        raise HTTPException(status_code=422, detail="the curve could not be fitted to this window, try another one")
+
+    t_end = float(t.max())
+    ahead = np.arange(1, req.forecast_months + 1)
+    t_forecast = t_end + ahead
+    low, high = band(f, t_forecast, t_end)
+    last_month = window.date.max()
+    forecast_dates = [last_month + pd.DateOffset(months=int(k)) for k in ahead]
+    remaining, to_limit = remaining_to_limit(f, t_end, req.economic_limit)
+
+    def ym(d) -> str:
+        return d.strftime("%Y-%m")
+
+    return dict(
+        model=f.model,
+        qi=round(f.qi, 1),
+        di_annual_pct=round(f.di_annual_pct, 1),
+        b=round(f.b, 3),
+        b_at_limit=f.b_at_limit,
+        r2=round(f.r2, 3),
+        months_used=f.n,
+        actual=[dict(month=ym(d), rate=round(float(q), 1)) for d, q in zip(window.date, window.oil_rate)],
+        fitted=[dict(month=ym(d), rate=round(float(q), 1)) for d, q in zip(window.date, f.rate(t))],
+        forecast=[dict(month=ym(d), rate=round(float(q), 1), low=round(float(lo), 1), high=round(float(hi), 1))
+                  for d, q, lo, hi in zip(forecast_dates, f.rate(t_forecast), low, high)],
+        remaining_mmbbl=round(remaining, 2),
+        months_to_limit=to_limit,
+    )

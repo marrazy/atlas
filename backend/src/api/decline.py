@@ -23,7 +23,7 @@ from scipy.optimize import curve_fit
 DAYS_PER_MONTH = 365.25 / 12
 SM3_TO_BBL = 6.2898
 MAX_FORECAST_MONTHS = 600  # stop looking for the economic limit after 50 years
-
+B_MIN, B_MAX = 0.01, 1.0  # range the hyperbolic fit may choose b from
 
 class Model(str, Enum):
     exponential = "exponential"
@@ -52,6 +52,17 @@ class Fit:
         return arps(t, self.qi, self.di, self.b)
 
     @property
+    def b_at_limit(self) -> bool:
+        """True when a hyperbolic fit pushed b to the edge of its allowed range.
+
+        At the low edge the data is really exponential, at the high edge really
+        harmonic, so the fitted b is a limit, not a measured value.
+        """
+        if self.model is not Model.hyperbolic:
+            return False
+        return self.b <= B_MIN + 1e-3 or self.b >= B_MAX - 1e-3
+
+    @property
     def di_annual_pct(self) -> float:
         """Nominal annual decline rate at the start of the window, in percent."""
         return self.di * 12 * 100
@@ -75,8 +86,8 @@ def fit(t: np.ndarray, q: np.ndarray, model: Model) -> Fit:
     if model is Model.hyperbolic:
         f = lambda tt, lqi, di, b: np.log(arps(tt, np.exp(lqi), di, b))
         p, _ = curve_fit(f, t, y, p0=[np.log(qi0), di0, 0.5],
-                         bounds=([np.log(qi0) - 3, 1e-5, 0.01], [np.log(qi0) + 3, 5.0, 1.0]), maxfev=20000)
-        lqi, di, b = p
+                         bounds=([np.log(qi0) - 3, 1e-5, B_MIN], [np.log(qi0) + 3, 5.0, B_MAX]), maxfev=20000)
+        lqi, di, b = p  # <- this line
     else:
         b = 0.0 if model is Model.exponential else 1.0
         f = lambda tt, lqi, di: np.log(arps(tt, np.exp(lqi), di, b))

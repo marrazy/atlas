@@ -76,3 +76,13 @@ def test_limit_never_reached():
     f = fit(T, arps(T, 2000, 0.01, 1), Model.harmonic)
     _, months = remaining_to_limit(f, 35, 1.0)
     assert months is None
+
+def test_b_at_limit_flags_exponential_data():
+    # truly exponential data makes a hyperbolic fit push b down to its floor
+    f = fit(T, arps(T, 2000, 0.04, 0), Model.hyperbolic)
+    assert f.b_at_limit
+
+
+def test_b_at_limit_is_false_for_a_real_hyperbolic_b():
+    f = fit(T, arps(T, 3000, 0.08, 0.6), Model.hyperbolic)
+    assert not f.b_at_limit

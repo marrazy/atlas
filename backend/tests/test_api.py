@@ -6,7 +6,7 @@ from conftest import VOLVE
 # GET /snapshot
 def test_health(client):
     r = client.get("/api/health")
-    assert r.status_code == 200;
+    assert r.status_code == 200
     assert r.json() == {"status": "ok"}
 
 
@@ -389,3 +389,100 @@ def test_lifecycles_median(client):
     assert ages[0] == 0
     assert ages == list(range(len(ages)))  # no gaps
     assert all(0 < share <= 1 for _, share in median)
+
+# POST /api/decline-fit
+
+VOLVE_WINDOW = {"field_id": VOLVE, "start": "2015-04", "end": "2016-08"}
+
+
+def _fit(client, **changes):
+    return client.post("/api/decline-fit", json=VOLVE_WINDOW | changes)
+
+
+def test_decline_fit_volve(client):
+    r = _fit(client, model="exponential")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["model"] == "exponential"
+    assert body["b"] == 0
+    assert body["qi"] == pytest.approx(3040, rel=0.01)
+    assert body["di_annual_pct"] == pytest.approx(87.9, abs=0.5)
+    assert body["r2"] > 0.9
+    assert body["months_used"] == 17
+
+
+def test_decline_fit_lists_line_up(client):
+    body = _fit(client).json()
+    assert len(body["actual"]) == len(body["fitted"]) == 17  # Apr 2015 to Aug 2016
+    assert [p["month"] for p in body["actual"]] == [p["month"] for p in body["fitted"]]
+    assert body["actual"][0]["month"] == "2015-04"
+    assert body["fitted"][-1]["month"] == "2016-08"
+
+
+def test_decline_fit_forecast_continues_from_the_window(client):
+    body = _fit(client, forecast_months=40).json()
+    assert len(body["forecast"]) == 40
+    assert body["forecast"][0]["month"] == "2016-09"
+    assert body["forecast"][-1]["month"] == "2019-12"
+    assert all(p["low"] <= p["rate"] <= p["high"] for p in body["forecast"])
+
+
+def test_decline_fit_volve_hyperbolic_hits_the_b_limit(client):
+    # Volve's late decline is really exponential, so a hyperbolic fit pushes b
+    # down to its lowest allowed value, and the API says so
+    body = _fit(client, model="hyperbolic").json()
+    assert body["b"] == pytest.approx(0.01, abs=0.002)
+    assert body["b_at_limit"] is True
+
+
+def test_decline_fit_b_at_limit_is_only_for_hyperbolic(client):
+    for model in ("exponential", "harmonic"):
+        assert _fit(client, model=model).json()["b_at_limit"] is False
+
+
+def test_decline_models_rank_as_expected(client):
+    # for the same data, harmonic declines slowest, so it forecasts the most oil
+    left = {m: _fit(client, model=m).json()["remaining_mmbbl"] for m in ("exponential", "hyperbolic", "harmonic")}
+    assert left["exponential"] <= left["hyperbolic"] <= left["harmonic"]
+    assert left["harmonic"] == pytest.approx(5.9, abs=0.1)
+
+
+def test_decline_fit_higher_limit_means_less_oil(client):
+    low_limit = _fit(client, economic_limit=100).json()
+    high_limit = _fit(client, economic_limit=600).json()
+    assert high_limit["remaining_mmbbl"] < low_limit["remaining_mmbbl"]
+    assert high_limit["months_to_limit"] < low_limit["months_to_limit"]
+
+
+def test_decline_fit_needs_enough_months(client):
+    r = _fit(client, start="2016-04", end="2016-08")  # only 5 months
+    assert r.status_code == 422
+    assert "6 months" in r.json()["detail"]
+
+
+def test_decline_fit_outside_production(client):
+    r = _fit(client, start="2020-01", end="2021-01")
+    assert r.status_code == 422
+    assert r.json()["detail"] == "no production data in that window"
+
+
+def test_decline_fit_unknown_field_is_404(client):
+    assert _fit(client, field_id=1).status_code == 404
+
+
+@pytest.mark.parametrize("changes", [
+    {"start": "2016-08", "end": "2015-04"},   # window backwards
+    {"start": "2015-04", "end": "2015-04"},   # window of zero length
+    {"start": "2015-13"},                     # not a real month
+    {"start": "April 2015"},                  # wrong format
+    {"model": "linear"},                      # not one of the three models
+    {"forecast_months": 0},                   # too short
+    {"forecast_months": 241},                 # too long
+    {"economic_limit": 0},                    # must be above zero
+])
+def test_decline_fit_rejects_bad_input(client, changes):
+    assert _fit(client, **changes).status_code == 422
+
+
+def test_decline_fit_only_accepts_post(client):
+    assert client.get("/api/decline-fit").status_code == 405
