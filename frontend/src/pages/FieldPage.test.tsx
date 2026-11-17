@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { FieldDetail, ProductionMonth } from '@/lib/api/types'
-import { fields, snapshot, volve, volveDeclineHyperbolic, volveProduction } from '@/test/fixtures'
+import { fields, snapshot, volve, volveDeclineHyperbolic, volveInvestments, volveProduction } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
 import { currentPath, renderApp, setWindowWidth } from '@/test/render-app'
 
@@ -33,6 +33,8 @@ const API = {
   '/api/fields/3420717/production': VOLVE_MONTHS,
   '/api/fields/42002473': BERLING,
   '/api/fields/42002473/production': [],
+  '/api/fields/3420717/investments': volveInvestments,
+  '/api/fields/42002473/investments': [],
   '/api/decline-fit': volveDeclineHyperbolic,
 }
 
@@ -77,11 +79,17 @@ describe('Volve', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Decline curve forecast' })).toBeInTheDocument()
   })
 
+  it('shows the investment chart and the sources', async () => {
+    renderApp('/fields/3420717')
+    expect(await screen.findByText('Million Norwegian kroner, not adjusted for inflation. 1,937 million in total.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volve on Sodir FactPages (opens in a new tab)' })).toBeInTheDocument()
+  })
+
   it('shows the production charts from the monthly data', async () => {
     renderApp('/fields/3420717')
-    expect(await screen.findByRole('img')).toHaveAccessibleName(
-      /^Two linked charts for Volve, February 2008 to September 2016\./,
-    )
+    expect(
+      await screen.findByRole('img', { name: /^Two linked charts for Volve, February 2008 to September 2016\./ }),
+    ).toBeInTheDocument()
   })
 })
 
@@ -98,6 +106,7 @@ describe('other fields', () => {
     expect(within(screen.getByRole('main')).getByText('Gas')).toBeInTheDocument()
     expect(screen.getByText('No production reported for this field.')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: 'Decline curve forecast' })).not.toBeInTheDocument()
+    expect(await screen.findByText('No investment reported for this field.')).toBeInTheDocument()
   })
 
   it('opens another field from the picker', async () => {

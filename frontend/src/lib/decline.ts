@@ -9,7 +9,7 @@ export const WEAK_FIT_R2 = 0.5
 
 export const DECLINE_MODELS: { value: DeclineModel; label: string; note: string }[] = [
   { value: 'exponential', label: 'Exponential', note: 'Constant decline rate. The most cautious forecast.' },
-  { value: 'hyperbolic', label: 'Hyperbolic', note: 'Decline slows over time. Common for fields under water injection.' },
+  { value: 'hyperbolic', label: 'Hyperbolic', note: 'Decline slows over time, between the other two models.' },
   { value: 'harmonic', label: 'Harmonic', note: 'Decline slows the most. Gives the most hopeful forecast.' },
 ]
 

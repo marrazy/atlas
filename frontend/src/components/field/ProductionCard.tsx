@@ -1,36 +1,19 @@
-import { DownloadIcon, RotateCcwIcon, ZoomInIcon, type LucideIcon } from 'lucide-react'
+import { DownloadIcon, RotateCcwIcon, ZoomInIcon } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { ChartCard, LegendItem } from '@/components/ChartCard'
+import { ChartToolButton } from '@/components/charts/ChartToolButton'
 import { EChart, type EChartHandle } from '@/components/charts/EChart'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ProductionMonth } from '@/lib/api/types'
 import type { ApiState } from '@/lib/api/use-api'
 import { CHART_COLOURS } from '@/lib/charts/colours'
 import { productionOption, productionSeries } from '@/lib/charts/production-option'
+import { saveChartImage } from '@/lib/charts/save-image'
 import type { FitWindow } from '@/lib/decline'
 import { fieldSlug } from '@/lib/field'
 
 const CHART_HEIGHT = 470
-
-type ToolButtonProps = { label: string; icon: LucideIcon; onClick: () => void; pressed?: boolean }
-
-function ToolButton({ label, icon: Icon, onClick, pressed }: ToolButtonProps) {
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={label}
-      aria-pressed={pressed}
-      title={label}
-      onClick={onClick}
-      className="size-8 text-muted-foreground hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground"
-    >
-      <Icon aria-hidden="true" />
-    </Button>
-  )
-}
 
 type Props = {
   fieldName: string
@@ -63,32 +46,25 @@ export function ProductionCard({ fieldName, production, fitWindow = null }: Prop
     instance()?.dispatchAction({ type: 'dataZoom', start: 0, end: 100 })
   }
 
-  const saveImage = () => {
-    const url = instance()?.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: CHART_COLOURS.card })
-    if (!url) return
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${fieldSlug(fieldName)}-production.png`
-    link.click()
-  }
+  const saveImage = () => saveChartImage(instance(), `${fieldSlug(fieldName)}-production.png`)
 
   const actions = option && (
     <>
-      <ToolButton
+      <ChartToolButton
         label="Zoom into an area"
         icon={ZoomInIcon}
         pressed={areaZoom}
         onClick={() => setAreaZoomMode(!areaZoom)}
       />
-      <ToolButton label="Reset view" icon={RotateCcwIcon} onClick={resetView} />
-      <ToolButton label="Save as image" icon={DownloadIcon} onClick={saveImage} />
+      <ChartToolButton label="Reset view" icon={RotateCcwIcon} onClick={resetView} />
+      <ChartToolButton label="Save as image" icon={DownloadIcon} onClick={saveImage} />
     </>
   )
 
   return (
     <ChartCard
       title="Production"
-      description="Gross volumes summed from the wells, monthly average per day. The two charts share one crosshair, so hovering one shows the same month on both."
+      description="Gross volumes for the field from Sodir, as a daily average for each month. The two charts share one crosshair, so hovering one shows the same month on both."
       actions={actions}
     >
       {production.status === 'loading' && <Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}

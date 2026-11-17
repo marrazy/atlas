@@ -1,5 +1,5 @@
 // Only the parts of ECharts the atlas uses, so the rest is left out of the build.
-import { LineChart, ScatterChart } from 'echarts/charts'
+import { BarChart, LineChart, ScatterChart } from 'echarts/charts'
 import {
   AriaComponent,
   DataZoomComponent,
@@ -14,6 +14,7 @@ import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 
 echarts.use([
+  BarChart,
   LineChart,
   ScatterChart,
   AriaComponent,

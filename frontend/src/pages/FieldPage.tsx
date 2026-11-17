@@ -5,13 +5,15 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { DeclineCard } from '@/components/field/DeclineCard'
 import { FieldHeader } from '@/components/field/FieldHeader'
 import { FieldPicker } from '@/components/field/FieldPicker'
+import { FieldSources } from '@/components/field/FieldSources'
 import { FieldStats } from '@/components/field/FieldStats'
+import { InvestmentCard } from '@/components/field/InvestmentCard'
 import { ProductionCard } from '@/components/field/ProductionCard'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { pageTitle } from '@/config'
-import { getField, getFieldProduction, getFields } from '@/lib/api/client'
+import { getField, getFieldInvestments, getFieldProduction, getFields } from '@/lib/api/client'
 import { useApi } from '@/lib/api/use-api'
 import { fitWindow } from '@/lib/decline'
 
@@ -32,6 +34,7 @@ function FieldView({ fieldId }: { fieldId: number }) {
   const detail = useApi(`field:${fieldId}`, (signal) => getField(fieldId, { signal }))
   const production = useApi(`production:${fieldId}`, (signal) => getFieldProduction(fieldId, { signal }))
   const fields = useApi('fields', (signal) => getFields({ signal }))
+  const investments = useApi(`investments:${fieldId}`, (signal) => getFieldInvestments(fieldId, { signal }))
   const window = useMemo(() => (production.status === 'ready' ? fitWindow(production.data) : null), [production])
 
   if (detail.status === 'error' && detail.httpStatus === 404) return <FieldNotFound />
@@ -72,6 +75,13 @@ function FieldView({ fieldId }: { fieldId: number }) {
               </ChartCard>
             ) : null}
           </div>
+          <div className="mt-4">
+            <InvestmentCard
+              fieldName={detail.status === 'ready' ? detail.data.name : ''}
+              investments={detail.status === 'ready' ? investments : { status: 'loading' }}
+            />
+          </div>
+          {detail.status === 'ready' && <FieldSources field={detail.data} />}
         </>
       )}
     </>
