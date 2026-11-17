@@ -3,6 +3,7 @@ import { volve, volveProduction } from '@/test/fixtures'
 import {
   areaLabel,
   describeField,
+  fieldSlug,
   foldForSearch,
   hydrocarbonLabel,
   matchField,
@@ -58,6 +59,18 @@ describe('productionSpan', () => {
 
   it('gives null for a field that never produced', () => {
     expect(productionSpan([])).toBeNull()
+  })
+})
+
+describe('fieldSlug', () => {
+  it.each([
+    ['Volve', 'volve'],
+    ['Oseberg Øst', 'oseberg-ost'],
+    ['Ærfugl Nord', 'aerfugl-nord'],
+    ['Fram H-Nord', 'fram-h-nord'],
+    ['Tommeliten A', 'tommeliten-a'],
+  ])('makes a file name part from %s: "%s"', (name, slug) => {
+    expect(fieldSlug(name)).toBe(slug)
   })
 })
 

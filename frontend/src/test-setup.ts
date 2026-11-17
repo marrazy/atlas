@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
-import { afterEach } from 'vitest'
+import { afterEach, vi } from 'vitest'
+
+vi.mock('echarts-for-react/esm/core', () => import('./test/echarts-stub'))
 
 // jsdom has no matchMedia. The sidebar uses it to tell phones from desktops,
 // and reads window.innerWidth for the answer, so tests set innerWidth instead.

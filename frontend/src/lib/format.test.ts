@@ -1,5 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { formatMonth, formatNumber } from './format'
+import { formatCompact, formatMonth, formatNumber, monthOf, monthStart } from './format'
+
+describe('formatCompact', () => {
+  it.each([
+    [0, '0'],
+    [200, '200'],
+    [2500, '2.5k'],
+    [10000, '10k'],
+    [64883, '64.9k'],
+    [1000000, '1M'],
+  ])('writes %s as "%s" for axis labels', (value, expected) => {
+    expect(formatCompact(value)).toBe(expected)
+  })
+})
+
+describe('monthStart and monthOf', () => {
+  it('turn a month into UTC time and back', () => {
+    expect(monthStart('2008-12')).toBe(Date.UTC(2008, 11, 1))
+    expect(monthOf(monthStart('2008-12'))).toBe('2008-12')
+    expect(monthOf(monthStart('2009-01'))).toBe('2009-01')
+  })
+})
 
 describe('formatNumber', () => {
   it('groups thousands with commas and rounds to whole numbers by default', () => {

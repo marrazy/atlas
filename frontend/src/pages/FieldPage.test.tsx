@@ -69,6 +69,13 @@ describe('Volve', () => {
     expect(card('Peak rate')).toEqual(['Peak rate', '56,129', 'Barrels a day, Dec 2008'])
     expect(card('Recovery rate')).toEqual(['Recovery rate', '54%', 'Oil in place recovered, per Equinor'])
   })
+
+  it('shows the production charts from the monthly data', async () => {
+    renderApp('/fields/3420717')
+    expect(await screen.findByRole('img')).toHaveAccessibleName(
+      /^Two linked charts for Volve, February 2008 to September 2016\./,
+    )
+  })
 })
 
 describe('other fields', () => {
@@ -82,6 +89,7 @@ describe('other fields', () => {
     expect(card('Peak rate')).toEqual(['Peak rate', 'None', 'No oil reported'])
     expect(cardLabels()).not.toContain('Recovery rate')
     expect(within(screen.getByRole('main')).getByText('Gas')).toBeInTheDocument()
+    expect(screen.getByText('No production reported for this field.')).toBeInTheDocument()
   })
 
   it('opens another field from the picker', async () => {

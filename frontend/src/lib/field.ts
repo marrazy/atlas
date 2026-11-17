@@ -43,6 +43,14 @@ export function foldForSearch(text: string): string {
     .replace(/[̀-ͯ]/g, '')
 }
 
+/** "Åsgard" → "asgard", "Oseberg Øst" → "oseberg-ost". For file names. */
+export function fieldSlug(name: string): string {
+  const slug = foldForSearch(name)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  return slug || 'field'
+}
+
 /** Search score for the field picker: names starting with the search first, then names containing it. */
 export function matchField(_value: string, search: string, keywords: string[] = []): number {
   const query = foldForSearch(search.trim())

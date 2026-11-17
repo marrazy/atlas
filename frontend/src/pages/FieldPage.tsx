@@ -3,6 +3,7 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { FieldHeader } from '@/components/field/FieldHeader'
 import { FieldPicker } from '@/components/field/FieldPicker'
 import { FieldStats } from '@/components/field/FieldStats'
+import { ProductionCard } from '@/components/field/ProductionCard'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { pageTitle } from '@/config'
@@ -45,7 +46,15 @@ function FieldView({ fieldId }: { fieldId: number }) {
       {detail.status === 'error' ? (
         <ErrorNotice message={detail.message} />
       ) : (
-        <FieldStats detail={detail} production={production} />
+        <>
+          <FieldStats detail={detail} production={production} />
+          <div className="mt-4">
+            <ProductionCard
+              fieldName={detail.status === 'ready' ? detail.data.name : ''}
+              production={detail.status === 'ready' ? production : { status: 'loading' }}
+            />
+          </div>
+        </>
       )}
     </>
   )
