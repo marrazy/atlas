@@ -24,3 +24,7 @@ def producing_years() -> pd.DataFrame:
     p = production()
     p = p[p.oe_net_msm3 > 0]
     return {int(fid): sorted(int(y) for y in years.unique()) for fid, years in p.groupby("field_id").year}
+
+def outlines_path() -> Path:
+    """GeoJSON file with every field outline. Sent as a file, so it is never loaded into memory."""
+    return DATA_DIR / "field_outlines.geojson"

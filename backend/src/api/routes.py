@@ -1,10 +1,12 @@
 import pandas as pd
 from fastapi import APIRouter
+from fastapi.responses import FileResponse
 
 from . import data
 from .schemas import FieldSummary
 
 router = APIRouter(prefix="/api")
+CACHE_A_DAY = {"Cache-Control": "public, max-age=86400"}
 
 def _none(value):
     return None if pd.isna(value) else value
@@ -32,3 +34,7 @@ def snapshot() -> dict:
 @router.get("/fields", response_model=list[FieldSummary], summary="Every field, largest first")
 def list_fields() -> list[dict]:
     return [_summary(row) for _, row in data.fields().iterrows()]
+
+@router.get("/fields/outlines", summary="Field outlines as GeoJSON, for the map")
+def field_outlines() -> FileResponse:
+    return FileResponse(data.outlines_path(), media_type="application/geo+json", headers=CACHE_A_DAY)
