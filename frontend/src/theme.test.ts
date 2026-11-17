@@ -74,6 +74,71 @@ describe('theme colours', () => {
   })
 })
 
+const ERROR_RED = '#ff6467'
+
+const SHADCN_PAIRS = [
+  ['card-foreground', 'card'],
+  ['popover-foreground', 'popover'],
+  ['primary-foreground', 'primary'],
+  ['secondary-foreground', 'secondary'],
+  ['accent-foreground', 'accent'],
+  ['sidebar-foreground', 'sidebar'],
+  ['sidebar-primary-foreground', 'sidebar-primary'],
+  ['sidebar-accent-foreground', 'sidebar-accent'],
+] as const
+
+const SHADCN_TOKENS = [
+  ...SHADCN_PAIRS.flat(),
+  'background', 'foreground', 'muted', 'muted-foreground', 'destructive',
+  'border', 'input', 'ring', 'sidebar-border', 'sidebar-ring',
+]
+
+describe('shadcn/ui colours', () => {
+  it('define every colour the components use, as a Tailwind class too', () => {
+    for (const token of SHADCN_TOKENS) {
+      expect(colours[token], `--${token}`).toMatch(/^#[0-9a-f]{6}$/)
+      expect(css).toContain(`--color-${token}: var(--${token});`)
+    }
+  })
+
+  it('only use colours from the plan, plus one red for errors', () => {
+    const allowed = new Set<string>([...Object.values(PLAN_COLOURS), ERROR_RED])
+    for (const token of SHADCN_TOKENS) {
+      expect(allowed.has(colours[token]), `--${token} is ${colours[token]}`).toBe(true)
+    }
+    expect(colours.destructive).toBe(ERROR_RED)
+  })
+
+  it('give each text colour at least 4.5 to 1 on its own background', () => {
+    for (const [text, bg] of SHADCN_PAIRS) {
+      expect(contrast(colours[text], colours[bg]), `${text} on ${bg}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('give error text at least 4.5 to 1 on the page, sidebar, card and muted backgrounds', () => {
+    for (const bg of ['background', 'sidebar', 'card', 'muted'] as const) {
+      expect(contrast(ERROR_RED, hex(bg)), `destructive on ${bg}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('give the focus ring at least 3 to 1 on the page, sidebar and card backgrounds', () => {
+    for (const bg of ['background', 'sidebar', 'card'] as const) {
+      expect(contrast(colours.ring, hex(bg)), `ring on ${bg}`).toBeGreaterThanOrEqual(3)
+    }
+  })
+
+  it('have one dark theme only, with nothing left from the shadcn defaults', () => {
+    expect(css).not.toMatch(/\.dark\s*{/)
+    expect(css).not.toContain('oklch(')
+    expect(css).not.toContain('Geist')
+    expect(css).not.toContain('--chart-')
+  })
+
+  it('use an 8px base radius, so buttons are 8px and cards about 12px like the design', () => {
+    expect(css).toMatch(/--radius:\s*0\.5rem;/)
+  })
+})
+
 describe('theme fonts', () => {
   it('use Inter for text and IBM Plex Mono for numbers', () => {
     expect(css).toMatch(/--font-sans:\s*'Inter Variable'/)
