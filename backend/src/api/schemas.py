@@ -53,3 +53,18 @@ class ShelfSummary(BaseModel):
     total_oe_net_msm3: float = Field(description="Everything produced up to the last month in the snapshot, "
                                                  "million Sm3 oil equivalent")
     producing_fields_now: int = Field(description="Fields whose current status is 'Producing'")
+
+class Lifecycle(BaseModel):
+    field_id: int
+    name: str
+    main_product: str
+    first_year: int = Field(description="First full year with production")
+    peak_year: int = Field(description="Year with the most production")
+    plateau_years: int = Field(description="Years within 10% of the best year")
+    series: list[tuple[int, float]] = Field(description="Pairs of [years since first production, share of best year from 0 to 1]")
+
+
+class LifecycleSet(BaseModel):
+    fields: list[Lifecycle] = Field(description="Oldest field first")
+    median: list[tuple[int, float]] = Field(description="Median share of best year at each age, "
+                                                        "only where at least 8 fields have data")

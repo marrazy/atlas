@@ -1,15 +1,20 @@
+import statistics
+
 import pandas as pd
 import numpy as np
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 
 from . import data
-from .schemas import FieldSummary, FieldDetail, ProductionMonth, InvestmentYear, ShelfSummary, ShelfYear
+from .schemas import FieldSummary, FieldDetail, ProductionMonth, InvestmentYear, ShelfSummary, ShelfYear, LifecycleSet
 
 router = APIRouter(prefix="/api")
 
-MIN_OIL_FOR_GOR = 50
+MIN_OIL_FOR_GOR = 50 # Sm3 per day. Below this the gas oil ratio is mostly noise.
+MIN_LIFECYCLE_YEARS = 4  # a field needs a few years of output before its life has a shape
+NEAR_PEAK = 0.9  # a year counts as "on plateau" if it is within 10% of the best year
+MIN_FIELDS_FOR_MEDIAN = 8  # fewer fields than this at an age, and the median is too shaky to show
 CACHE_A_DAY = {"Cache-Control": "public, max-age=86400"}
 
 def _none(value):
@@ -121,3 +126,44 @@ def shelf() -> dict:
         total_oe_net_msm3=round(float(data.production().oe_net_msm3.sum()), 1),
         producing_fields_now=int((data.fields().status == "Producing").sum()),
     )
+
+@router.get("/lifecycles", response_model=LifecycleSet, summary="Every field's life as a share of its best year")
+def lifecycles(
+    min_cum: float = Query(8, ge=0, description="Only fields that produced at least this much, million Sm3 o.e."),
+    include: list[int] = Query([], description="Field ids to show even if they produced less than min_cum"),
+) -> dict:
+    for field_id in include:
+        _field_or_404(field_id)
+
+    fields = data.fields()
+    yearly = data.yearly_by_field()
+    yearly = yearly[yearly.oe_net_msm3 > 0]
+
+    out = []
+    for field_id, years in yearly.groupby("field_id"):
+        row = fields.loc[field_id]
+        big_enough = row.cum_oe_net_msm3 >= min_cum or field_id in include
+        if len(years) < MIN_LIFECYCLE_YEARS or not big_enough:
+            continue
+        years = years.sort_values("year")
+        best = float(years.oe_net_msm3.max())
+        first_year = int(years.year.iloc[0])
+        out.append(dict(
+            field_id=int(field_id),
+            name=row["name"],
+            main_product=row.main_product,
+            first_year=first_year,
+            peak_year=int(years.loc[years.oe_net_msm3.idxmax(), "year"]),
+            plateau_years=int((years.oe_net_msm3 >= NEAR_PEAK * best).sum()),
+            series=[(int(y) - first_year, round(float(v) / best, 4)) for y, v in zip(years.year, years.oe_net_msm3)],
+        ))
+
+    # median shape: at each age, the middle value across all fields that reached that age
+    by_age: dict[int, list[float]] = {}
+    for life in out:
+        for age, share in life["series"]:
+            by_age.setdefault(age, []).append(share)
+    median = [(age, round(statistics.median(shares), 4))
+              for age, shares in sorted(by_age.items()) if len(shares) >= MIN_FIELDS_FOR_MEDIAN]
+
+    return dict(fields=sorted(out, key=lambda life: (life["first_year"], life["name"])), median=median)

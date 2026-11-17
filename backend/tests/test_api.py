@@ -297,3 +297,95 @@ def test_shelf_producing_fields_now_matches_field_list(client):
     fields = client.get("/api/fields").json()
     producing = sum(1 for f in fields if f["status"] == "Producing")
     assert client.get("/api/shelf").json()["producing_fields_now"] == producing
+
+# GET /api/lifecycles
+
+def _life(body, name):
+    return next(f for f in body["fields"] if f["name"] == name)
+
+
+def test_lifecycles_default_set(client):
+    body = client.get("/api/lifecycles").json()
+    assert len(body["fields"]) == 85  # at least 8 million Sm3 o.e. and 4 full years
+    first_years = [f["first_year"] for f in body["fields"]]
+    assert first_years == sorted(first_years)  # oldest first
+    assert body["fields"][0]["name"] == "Ekofisk"
+
+
+def test_lifecycles_ekofisk(client):
+    ekofisk = _life(client.get("/api/lifecycles").json(), "Ekofisk")
+    assert ekofisk["first_year"] == 1971
+    assert ekofisk["peak_year"] == 2002  # 31 years in, after the field was redeveloped
+    assert ekofisk["plateau_years"] == 14
+
+
+def test_lifecycles_volve(client):
+    volve = _life(client.get("/api/lifecycles").json(), "Volve")
+    assert volve["first_year"] == 2008
+    assert volve["peak_year"] == 2009
+    assert volve["plateau_years"] == 1
+    assert [age for age, _ in volve["series"]] == list(range(9))  # 2008 to 2016
+
+
+def test_lifecycles_series_are_shares_of_the_best_year(client):
+    for f in client.get("/api/lifecycles").json()["fields"]:
+        shares = [share for _, share in f["series"]]
+        assert f["series"][0][0] == 0  # starts at age 0
+        assert max(shares) == 1.0  # the best year is 1
+        # a few tiny late years round to 0.0 (Heimdal, Tune), so allow zero here
+        assert all(0 <= s <= 1 for s in shares)
+
+
+def test_lifecycles_skip_years_a_field_paused(client):
+    # years with no production are left out, so ages always rise but can jump.
+    # Heimdal stopped for a few years and started again.
+    heimdal = _life(client.get("/api/lifecycles").json(), "Heimdal")
+    ages = [age for age, _ in heimdal["series"]]
+    assert ages == sorted(set(ages))
+    assert ages[-1] + 1 > len(ages)  # at least one age is missing
+
+
+def test_lifecycles_peak_year_is_the_year_with_share_1(client):
+    for f in client.get("/api/lifecycles").json()["fields"]:
+        age_at_peak = next(age for age, share in f["series"] if share == 1.0)
+        assert f["first_year"] + age_at_peak == f["peak_year"]
+
+
+def test_lifecycles_min_cum_filters(client):
+    small = client.get("/api/lifecycles", params={"min_cum": 0}).json()["fields"]
+    large = client.get("/api/lifecycles", params={"min_cum": 100}).json()["fields"]
+    assert len(small) == 118  # every field with 4 or more full years
+    assert len(large) < len(small)
+    assert "Edda" not in {f["name"] for f in large}
+
+
+def test_lifecycles_include_adds_a_small_field(client):
+    fields = client.get("/api/fields").json()
+    edda = next(f for f in fields if f["name"] == "Edda")  # just under 8 million Sm3 o.e.
+    without = client.get("/api/lifecycles").json()["fields"]
+    with_edda = client.get("/api/lifecycles", params={"include": edda["field_id"]}).json()["fields"]
+    assert "Edda" not in {f["name"] for f in without}
+    assert "Edda" in {f["name"] for f in with_edda}
+
+
+def test_lifecycles_include_cannot_add_a_field_with_too_few_years(client):
+    fields = client.get("/api/fields").json()
+    castberg = next(f for f in fields if f["name"] == "Johan Castberg")  # one full year so far
+    body = client.get("/api/lifecycles", params={"include": castberg["field_id"]}).json()
+    assert "Johan Castberg" not in {f["name"] for f in body["fields"]}
+
+
+def test_lifecycles_include_unknown_field_is_404(client):
+    assert client.get("/api/lifecycles", params={"include": 1}).status_code == 404
+
+
+def test_lifecycles_min_cum_cannot_be_negative(client):
+    assert client.get("/api/lifecycles", params={"min_cum": -1}).status_code == 422
+
+
+def test_lifecycles_median(client):
+    median = client.get("/api/lifecycles").json()["median"]
+    ages = [age for age, _ in median]
+    assert ages[0] == 0
+    assert ages == list(range(len(ages)))  # no gaps
+    assert all(0 < share <= 1 for _, share in median)
