@@ -12,7 +12,7 @@ function App() {
       .catch(() => setStatus('Disconnected'))
   }, [])
 
-  return <h1>Status: {status}</h1>
+  return <h1 className="p-6 text-[28px] font-bold tracking-heading">Status: {status}</h1>
 }
 
 export default App
