@@ -26,3 +26,11 @@ class FieldDetail(FieldSummary):
     peak_oil_rate: float | None = Field(description="Highest monthly gross oil rate, Sm3 per day. Empty if no oil.")
     peak_oil_month: str | None = Field(description="Month of the peak, as YYYY-MM")
     factpage_url: str = Field(description="The field's page on Sodir FactPages")
+
+class ProductionMonth(BaseModel):
+    month: str = Field(description="YYYY-MM")
+    oil_rate: float = Field(description="Gross oil, Sm3 per day")
+    gas_rate: float = Field(description="Gross gas, Sm3 per day")
+    gor: float | None = Field(description="Gas oil ratio, Sm3 of gas per Sm3 of oil. "
+                                          "Empty when there is too little oil, or no gas was reported.")
+    oe_net_msm3: float = Field(description="Saleable oil equivalent that month, million Sm3")

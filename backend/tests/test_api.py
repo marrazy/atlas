@@ -167,3 +167,55 @@ def test_field_detail_id_must_be_a_number(client):
 def test_outlines_still_reach_their_own_route(client):
     # /fields/outlines must not be read as /fields/{field_id}
     assert client.get("/api/fields/outlines").status_code == 200
+
+# GET /api/fields/{field_id}/production
+
+def test_production_volve_covers_its_whole_life(client):
+    body = client.get(f"/api/fields/{VOLVE}/production").json()
+    assert body[0]["month"] == "2008-02"
+    assert body[-1]["month"] == "2016-09"
+    assert len(body) == 104  # Feb 2008 to Sep 2016, no gaps
+
+
+def test_production_months_are_in_order_with_no_repeats(client):
+    months = [m["month"] for m in client.get(f"/api/fields/{VOLVE}/production").json()]
+    assert months == sorted(months)
+    assert len(set(months)) == len(months)
+
+
+def test_production_rates_are_never_negative(client):
+    # Sodir's correction months can be slightly negative, rates are clipped at zero
+    body = client.get(f"/api/fields/{VOLVE}/production").json()
+    assert all(m["oil_rate"] >= 0 and m["gas_rate"] >= 0 for m in body)
+
+
+def test_production_peak_matches_field_detail(client):
+    body = client.get(f"/api/fields/{VOLVE}/production").json()
+    detail = client.get(f"/api/fields/{VOLVE}").json()
+    peak = max(body, key=lambda m: m["oil_rate"])
+    assert peak["month"] == detail["peak_oil_month"]
+    assert peak["oil_rate"] == detail["peak_oil_rate"]
+
+
+def test_production_gor_is_empty_without_gas(client):
+    body = client.get(f"/api/fields/{VOLVE}/production").json()
+    # Volve reported oil but no gas in its first three months
+    assert [m["gor"] for m in body[:3]] == [None, None, None]
+    assert body[0]["gas_rate"] == 0
+
+
+def test_production_gor_matches_the_rates(client):
+    for m in client.get(f"/api/fields/{VOLVE}/production").json():
+        if m["gor"] is not None:
+            assert m["gor"] > 0
+            assert m["gor"] == pytest.approx(m["gas_rate"] / m["oil_rate"], rel=0.01)
+
+
+def test_production_field_that_never_produced_is_empty(client):
+    fields = client.get("/api/fields").json()
+    berling = next(f for f in fields if f["name"] == "Berling")
+    assert client.get(f"/api/fields/{berling['field_id']}/production").json() == []
+
+
+def test_production_unknown_field_is_404(client):
+    assert client.get("/api/fields/1/production").status_code == 404

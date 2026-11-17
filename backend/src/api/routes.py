@@ -1,11 +1,15 @@
 import pandas as pd
+import numpy as np
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+
 from . import data
-from .schemas import FieldSummary, FieldDetail
+from .schemas import FieldSummary, FieldDetail, ProductionMonth
 
 router = APIRouter(prefix="/api")
+
+MIN_OIL_FOR_GOR = 50
 CACHE_A_DAY = {"Cache-Control": "public, max-age=86400"}
 
 def _none(value):
@@ -64,3 +68,31 @@ def field_detail(field_id: int) -> dict:
         peak_oil_month=peak.date.strftime("%Y-%m") if peak is not None else None,
         factpage_url=row.factpage_url,
     )
+
+@router.get("/fields/{field_id}/production", response_model=list[ProductionMonth],
+            summary="Monthly rates for one field")
+def field_production(field_id: int) -> list[dict]:
+    _field_or_404(field_id)
+    months = data.field_monthly(field_id)
+
+    # drop the empty months before first production and after last production
+    producing = months.index[months.oe_gross_msm3 > 0]
+    if len(producing) == 0:
+        return []
+    months = months.loc[producing[0]:producing[-1]]
+
+    # gas oil ratio only where both oil and gas were reported
+    # (Volve, for example, reported no gas in its first months)
+    has_both = (months.oil_rate > MIN_OIL_FOR_GOR) & (months.gas_rate > 0)
+    gor = np.where(has_both, months.gas_rate / months.oil_rate.where(has_both), np.nan)
+
+    return [
+        dict(
+            month=d.strftime("%Y-%m"),
+            oil_rate=round(float(oil), 1),
+            gas_rate=round(float(gas), 0),
+            gor=None if np.isnan(r) else round(float(r), 1),
+            oe_net_msm3=round(float(oe), 6),
+        )
+        for d, oil, gas, r, oe in zip(months.date, months.oil_rate, months.gas_rate, gor, months.oe_net_msm3)
+    ]
