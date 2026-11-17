@@ -103,10 +103,10 @@ describe('other fields', () => {
 })
 
 describe('loading and errors', () => {
-  it('shows placeholders while the field is loading', () => {
+  it('shows placeholders while the field is loading', async () => {
     mockApi({ ...API, '/api/fields/3420717': () => new Promise<Response>(() => {}) })
     renderApp('/fields/3420717')
-    expect(screen.getByRole('heading', { level: 1, name: 'Loading field' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Loading field' })).toBeInTheDocument()
     expect(cardLabels()).toEqual(['First production', 'Last production', 'Total oil', 'Peak rate'])
     expect(screen.getByText('First production').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
   })

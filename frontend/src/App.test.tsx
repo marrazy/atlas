@@ -50,24 +50,24 @@ describe('routes', () => {
     expect(within(nav()).getByRole('link', { name: 'Field deep dive' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('says the field was not found when the id is not a number', () => {
+  it('says the field was not found when the id is not a number', async () => {
     renderAt('/fields/volve')
-    expect(screen.getByRole('heading', { level: 1, name: 'Field not found' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Field not found' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the field deep dive' })).toHaveAttribute('href', '/fields')
   })
 
-  it('shows a not found page for an unknown address, with a way back', () => {
+  it('shows a not found page for an unknown address, with a way back', async () => {
     renderAt('/wells')
-    expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument()
     expect(within(breadcrumb()).getByText('Page not found')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Go to the shelf map' })).toHaveAttribute('href', '/')
   })
 
-  it('moves between screens with the sidebar links', () => {
+  it('moves between screens with the sidebar links', async () => {
     renderAt('/')
     fireEvent.click(within(nav()).getByRole('link', { name: 'Field lifecycles' }))
     expect(screen.getByTestId('path')).toHaveTextContent('/lifecycles')
-    expect(screen.getByRole('heading', { level: 1, name: 'Field lifecycles' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Field lifecycles' })).toBeInTheDocument()
   })
 })
 

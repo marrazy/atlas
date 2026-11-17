@@ -1,10 +1,14 @@
+import { lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { DEFAULT_FIELD_ID } from '@/config'
-import { FieldPage } from '@/pages/FieldPage'
-import { LifecyclesPage } from '@/pages/LifecyclesPage'
-import { NotFoundPage } from '@/pages/NotFoundPage'
-import { ShelfMapPage } from '@/pages/ShelfMapPage'
+
+// Each screen is built into its own file and downloaded the first time it is opened,
+// so the charts and the map only load on the screens that use them.
+const ShelfMapPage = lazy(() => import('@/pages/ShelfMapPage').then((m) => ({ default: m.ShelfMapPage })))
+const FieldPage = lazy(() => import('@/pages/FieldPage').then((m) => ({ default: m.FieldPage })))
+const LifecyclesPage = lazy(() => import('@/pages/LifecyclesPage').then((m) => ({ default: m.LifecyclesPage })))
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 
 export function AppRoutes() {
   return (
