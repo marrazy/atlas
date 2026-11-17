@@ -1,18 +1,29 @@
-import { useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import { AppLayout } from '@/components/layout/AppLayout'
+import { DEFAULT_FIELD_ID } from '@/config'
+import { FieldPage } from '@/pages/FieldPage'
+import { LifecyclesPage } from '@/pages/LifecyclesPage'
+import { NotFoundPage } from '@/pages/NotFoundPage'
+import { ShelfMapPage } from '@/pages/ShelfMapPage'
 
-type Health = { status: string }
-
-function App() {
-  const [status, setStatus] = useState('Connecting...')
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((res) => (res.ok ? (res.json() as Promise<Health>) : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data) => setStatus(data.status === 'ok' ? 'Ok' : 'Error'))
-      .catch(() => setStatus('Disconnected'))
-  }, [])
-
-  return <h1 className="p-6 text-[28px] font-bold tracking-heading">Status: {status}</h1>
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<ShelfMapPage />} />
+        <Route path="fields" element={<Navigate to={`/fields/${DEFAULT_FIELD_ID}`} replace />} />
+        <Route path="fields/:fieldId" element={<FieldPage />} />
+        <Route path="lifecycles" element={<LifecyclesPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  )
 }
 
-export default App
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  )
+}

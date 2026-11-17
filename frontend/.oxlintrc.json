@@ -9,6 +9,10 @@
     {
       "files": ["src/components/ui/**"],
       "rules": { "react/only-export-components": "off" }
+    },
+    {
+      "files": ["src/hooks/use-mobile.ts"],
+      "rules": { "react/set-state-in-effect": "off" }
     }
   ]
 }
