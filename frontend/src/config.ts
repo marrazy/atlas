@@ -1,7 +1,15 @@
 export const SITE_NAME = 'North Sea Field Atlas'
 
-/** Volve, the field the deep dive opens on. */
-export const DEFAULT_FIELD_ID = 3420717
+export const VOLVE_ID = 3420717
+
+/** The field the deep dive opens on. */
+export const DEFAULT_FIELD_ID = VOLVE_ID
+
+/**
+ * Share of Volve's oil in place that was recovered, published by Equinor. It is not in the
+ * Sodir data, so the plan allows this one value, shown only for Volve and with its source.
+ */
+export const VOLVE_RECOVERY_PERCENT = 54
 
 export const SOURCE_CODE_URL = 'https://github.com/marrazy/atlas'
 

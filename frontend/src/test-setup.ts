@@ -18,4 +18,12 @@ if (!window.matchMedia) {
     }) as MediaQueryList
 }
 
+// jsdom also lacks these two. The popover and the searchable field list call them.
+window.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Element.prototype.scrollIntoView ??= function () {}
+
 afterEach(cleanup)

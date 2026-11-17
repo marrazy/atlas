@@ -1,50 +1,34 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, useLocation } from 'react-router'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AppRoutes } from '@/App'
 import { DATA_CREDIT, SOURCE_CODE_URL } from '@/config'
-import { snapshot } from '@/test/fixtures'
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
-}
-
-function CurrentPath() {
-  return <output data-testid="path">{useLocation().pathname}</output>
-}
-
-function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <AppRoutes />
-      <CurrentPath />
-    </MemoryRouter>,
-  )
-}
-
-function setWidth(width: number) {
-  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
-}
+import { fields, snapshot, volve, volveProduction } from '@/test/fixtures'
+import { mockApi } from '@/test/mock-api'
+import { renderApp as renderAt, setWindowWidth as setWidth } from '@/test/render-app'
 
 const nav = () => screen.getByRole('navigation', { name: 'Main' })
 const breadcrumb = () => screen.getByRole('navigation', { name: 'breadcrumb' })
 
 beforeEach(() => {
   setWidth(1280)
-  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(json(snapshot))))
+  mockApi({
+    '/api/snapshot': snapshot,
+    '/api/fields': fields,
+    '/api/fields/3420717': volve,
+    '/api/fields/3420717/production': volveProduction,
+  })
 })
 
 describe('routes', () => {
   it.each([
-    ['/', 'Shelf map'],
-    ['/lifecycles', 'Field lifecycles'],
-    ['/fields/3420717', 'Field deep dive'],
-  ])('%s shows the %s screen, marks it in the sidebar and the breadcrumb, and sets the tab title', async (path, name) => {
+    ['/', 'Shelf map', 'Shelf map'],
+    ['/lifecycles', 'Field lifecycles', 'Field lifecycles'],
+    ['/fields/3420717', 'Field deep dive', 'Volve'],
+  ])('%s shows the %s screen, marks it in the sidebar and the breadcrumb, and sets the tab title', async (path, name, heading) => {
     renderAt(path)
-    expect(screen.getByRole('heading', { level: 1, name })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
     expect(within(nav()).getByRole('link', { name })).toHaveAttribute('aria-current', 'page')
     expect(within(breadcrumb()).getByText(name)).toHaveAttribute('aria-current', 'page')
-    await waitFor(() => expect(document.title).toBe(`${name} · North Sea Field Atlas`))
+    await waitFor(() => expect(document.title).toBe(`${heading} · North Sea Field Atlas`))
   })
 
   it('marks only one sidebar link as the current page', () => {
@@ -55,10 +39,10 @@ describe('routes', () => {
     expect(current.map((link) => link.textContent)).toEqual(['Field lifecycles'])
   })
 
-  it('opens Volve when the field deep dive has no field in the address', () => {
+  it('opens Volve when the field deep dive has no field in the address', async () => {
     renderAt('/fields')
     expect(screen.getByTestId('path')).toHaveTextContent('/fields/3420717')
-    expect(screen.getByRole('heading', { level: 1, name: 'Field deep dive' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Volve' })).toBeInTheDocument()
   })
 
   it('keeps the field deep dive marked in the sidebar for any field', () => {

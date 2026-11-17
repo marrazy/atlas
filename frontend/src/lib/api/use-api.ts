@@ -1,9 +1,10 @@
 import { useEffect, useEffectEvent, useState } from 'react'
-import { describeError } from './errors'
+import { ApiError, describeError } from './errors'
 
 export type ApiState<T> =
   | { status: 'loading' }
-  | { status: 'error'; message: string }
+  /** httpStatus is set when the API answered, for example 404 for an unknown field. */
+  | { status: 'error'; message: string; httpStatus?: number }
   | { status: 'ready'; data: T }
 
 const LOADING: ApiState<never> = { status: 'loading' }
@@ -26,7 +27,8 @@ export function useApi<T>(key: string, load: (signal: AbortSignal) => Promise<T>
       },
       (error: unknown) => {
         const message = describeError(error)
-        if (current && message !== null) setResult({ key, state: { status: 'error', message } })
+        const httpStatus = error instanceof ApiError && error.status > 0 ? error.status : undefined
+        if (current && message !== null) setResult({ key, state: { status: 'error', message, httpStatus } })
       },
     )
 

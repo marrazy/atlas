@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { formatMonth } from './format'
+import { formatMonth, formatNumber } from './format'
+
+describe('formatNumber', () => {
+  it('groups thousands with commas and rounds to whole numbers by default', () => {
+    expect(formatNumber(8923.8 * 6.2898)).toBe('56,129')
+  })
+
+  it('keeps a fixed number of decimals when asked', () => {
+    expect(formatNumber(63.335, 1)).toBe('63.3')
+    expect(formatNumber(0, 1)).toBe('0.0')
+    expect(formatNumber(456.25, 1)).toBe('456.3')
+  })
+})
 
 describe('formatMonth', () => {
   it.each([

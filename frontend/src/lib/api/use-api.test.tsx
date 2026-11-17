@@ -22,7 +22,9 @@ describe('useApi', () => {
 
   it('gives the readable message when the API answers with an error', async () => {
     const { result } = renderHook(() => useApi('a', () => Promise.reject(new ApiError(404, 'No field with id 1.'))))
-    await waitFor(() => expect(result.current).toEqual({ status: 'error', message: 'No field with id 1.' }))
+    await waitFor(() =>
+      expect(result.current).toEqual({ status: 'error', message: 'No field with id 1.', httpStatus: 404 }),
+    )
   })
 
   it('gives a general message for an error that did not come from the API', async () => {
