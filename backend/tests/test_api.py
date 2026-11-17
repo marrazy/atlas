@@ -219,3 +219,41 @@ def test_production_field_that_never_produced_is_empty(client):
 
 def test_production_unknown_field_is_404(client):
     assert client.get("/api/fields/1/production").status_code == 404
+
+# GET /api/fields/{field_id}/investments
+
+def test_investments_volve(client):
+    body = client.get(f"/api/fields/{VOLVE}/investments").json()
+    assert body[0] == {"year": 2005, "investment_mnok": 184.0}
+    assert body[-1]["year"] == 2015
+    assert sum(y["investment_mnok"] for y in body) == pytest.approx(4694)
+
+
+def test_investments_volve_peaks_before_first_oil(client):
+    # most money is spent building the field, before production starts in 2008
+    body = client.get(f"/api/fields/{VOLVE}/investments").json()
+    biggest = max(body, key=lambda y: y["investment_mnok"])
+    assert biggest["year"] == 2007
+
+
+def test_investments_are_in_order_and_positive(client):
+    body = client.get("/api/fields/46437/investments").json()  # Troll
+    years = [y["year"] for y in body]
+    assert years == sorted(years)
+    assert len(set(years)) == len(years)
+    assert all(y["investment_mnok"] > 0 for y in body)
+
+
+def test_investments_stop_at_2024(client):
+    body = client.get("/api/fields/46437/investments").json()
+    assert max(y["year"] for y in body) <= 2024
+
+
+def test_investments_field_without_any_is_empty(client):
+    fields = client.get("/api/fields").json()
+    hugin_sat = next(f for f in fields if f["name"] == "Hugin Satellitter")
+    assert client.get(f"/api/fields/{hugin_sat['field_id']}/investments").json() == []
+
+
+def test_investments_unknown_field_is_404(client):
+    assert client.get("/api/fields/1/investments").status_code == 404

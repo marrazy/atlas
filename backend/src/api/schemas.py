@@ -34,3 +34,7 @@ class ProductionMonth(BaseModel):
     gor: float | None = Field(description="Gas oil ratio, Sm3 of gas per Sm3 of oil. "
                                           "Empty when there is too little oil, or no gas was reported.")
     oe_net_msm3: float = Field(description="Saleable oil equivalent that month, million Sm3")
+
+class InvestmentYear(BaseModel):
+    year: int
+    investment_mnok: float = Field(description="Million Norwegian kroner, not adjusted for inflation")

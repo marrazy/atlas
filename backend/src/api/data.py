@@ -28,6 +28,10 @@ def production() -> pd.DataFrame:
     p["gas_rate"] = (p.gas_gross_bsm3 * 1e9 / days).clip(lower=0)  # Sm3 per day
     return p
 
+@lru_cache
+def investments() -> pd.DataFrame:
+    """One row per field and year with any investment. Sodir's figures run to 2024."""
+    return pd.read_parquet(DATA_DIR / "investments_yearly.parquet")
 
 def field_monthly(field_id: int) -> pd.DataFrame:
     p = production()

@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 
 
 from . import data
-from .schemas import FieldSummary, FieldDetail, ProductionMonth
+from .schemas import FieldSummary, FieldDetail, ProductionMonth, InvestmentYear
 
 router = APIRouter(prefix="/api")
 
@@ -96,3 +96,11 @@ def field_production(field_id: int) -> list[dict]:
         )
         for d, oil, gas, r, oe in zip(months.date, months.oil_rate, months.gas_rate, gor, months.oe_net_msm3)
     ]
+
+@router.get("/fields/{field_id}/investments", response_model=list[InvestmentYear],
+            summary="Investment by year for one field")
+def field_investments(field_id: int) -> list[dict]:
+    _field_or_404(field_id)
+    inv = data.investments()
+    inv = inv[inv.field_id == field_id].sort_values("year")
+    return [dict(year=int(y), investment_mnok=round(float(v), 1)) for y, v in zip(inv.year, inv.investment_mnok)]
