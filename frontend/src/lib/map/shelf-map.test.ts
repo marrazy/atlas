@@ -9,7 +9,13 @@ import {
   fieldBounds,
   fieldHoverText,
   fieldKind,
+  CIRCLE_FADE,
+  FIELD_LAYERS,
+  NORTH_SEA_VIEW,
+  OUTLINE_ZOOM,
   fieldPoints,
+  outlineLayers,
+  outlineStates,
   producingCount,
   producingNotMapped,
   shelfMapStyle,
@@ -133,6 +139,57 @@ describe('shelfMapStyle', () => {
     expect(describeShelfMap(fieldPoints(fields, 2020), 2020)).toBe(
       'Map of the Norwegian Continental Shelf in 2020, with 2 fields as circles sized by total production and coloured by main product. 0 produced that year, 1 had stopped, and 1 had not started.',
     )
+  })
+})
+
+describe('outlines', () => {
+  const [fill, line] = outlineLayers()
+
+  it('fill and edge the outlines from the outline source, only once zoomed in', () => {
+    expect([fill.id, line.id]).toEqual(['outlines-fill', 'outlines-line'])
+    expect(fill.source).toBe('outlines')
+    expect(fill.minzoom).toBe(OUTLINE_ZOOM.start)
+    expect(line.minzoom).toBe(OUTLINE_ZOOM.start)
+  })
+
+  it('colour by main product, from the outline properties', () => {
+    expect(fill.paint['fill-color']).toEqual(['match', ['get', 'main_product'], 'oil', CHART_COLOURS.oil, CHART_COLOURS.gas])
+  })
+
+  it('look like the circles: filled when producing that year, a thick edge when stopped, faint when not started', () => {
+    const text = JSON.stringify([fill.paint, line.paint])
+    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'producing', 0.5, 0]))
+    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'stopped', 2, 1.2]))
+    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'not-yet', 0.5, 1]))
+  })
+
+  it('fade in over the same zooms as the circles fade out', () => {
+    const zoomStops = (value: unknown) => (value as unknown[]).slice(3).filter((_, i) => i % 2 === 0)
+    expect(zoomStops(fill.paint['fill-opacity'])).toEqual([OUTLINE_ZOOM.start, OUTLINE_ZOOM.end])
+    expect(zoomStops(CIRCLE_FADE['fields-producing']['circle-opacity'])).toEqual([OUTLINE_ZOOM.start, OUTLINE_ZOOM.end])
+    expect(Object.keys(CIRCLE_FADE).sort()).toEqual([...FIELD_LAYERS].sort())
+  })
+
+  it('load before they show, and show fully by the zoom the North Sea button goes to', () => {
+    expect(OUTLINE_ZOOM.load).toBeLessThan(OUTLINE_ZOOM.start)
+    expect(OUTLINE_ZOOM.start).toBeLessThan(OUTLINE_ZOOM.end)
+  })
+
+  it('get each field\'s kind for the year, by field id', () => {
+    expect(outlineStates(fields, 2020)).toEqual([
+      { id: 3420717, kind: 'stopped' },
+      { id: 29401178, kind: 'stopped' },
+      { id: 42002473, kind: 'not-yet' },
+    ])
+  })
+
+  it('the North Sea view is a box around the northern North Sea fields', () => {
+    const [west, south, east, north] = NORTH_SEA_VIEW
+    expect(west).toBeLessThan(east)
+    expect(south).toBeLessThan(north)
+    // Volve is in the southern part of this view
+    expect(volve.lat).toBeGreaterThan(south)
+    expect(volve.lon).toBeGreaterThan(west)
   })
 })
 

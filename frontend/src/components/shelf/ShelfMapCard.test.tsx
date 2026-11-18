@@ -17,7 +17,7 @@ describe('ShelfMapCard', () => {
   it('describes only what the map shows, from the data', () => {
     renderCard({ status: 'ready', data: fields })
     expect(screen.getByRole('heading', { level: 2, name: 'Fields on the shelf' })).toBeInTheDocument()
-    expect(screen.getByText('Each field is a circle at the centre of its outline. Drag the year or press play to see which fields were producing. Click a field to open its deep dive.',)).toBeInTheDocument()
+    expect(screen.getByText('Each field is a circle at the centre of its outline. Drag the year or press play to see which fields were producing. Zoom in to see the real field outlines. Click a field to open its deep dive.',)).toBeInTheDocument()
   })
 
   it('explains colour and shape in words, so colour is not the only clue', () => {

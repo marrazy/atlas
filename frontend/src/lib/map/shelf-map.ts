@@ -56,7 +56,6 @@ export type FieldFeatureProperties = {
   product: MainProduct
   kind: FieldKind
   radius: number
-  hover: string
 }
 
 /** The fields that have a location, as map points for a year, largest drawn last so they sit on top. */
@@ -73,7 +72,6 @@ export function fieldPoints(fields: FieldSummary[], year: number) {
         product: f.main_product,
         kind: fieldKind(f, year),
         radius: circleRadius(f.cum_oe_net_msm3, largest),
-        hover: fieldHoverText(f),
       } satisfies FieldFeatureProperties,
     }))
     .sort((a, b) => a.properties.radius - b.properties.radius)
@@ -176,6 +174,62 @@ export function shelfMapStyle(landUrl: string, points: ReturnType<typeof fieldPo
 }
 
 export const FIELD_LAYERS = ['fields-producing', 'fields-stopped', 'fields-not-yet']
+
+/**
+ * Zoom levels for the real field outlines. They load a little before they show,
+ * then fade in while the circles fade out. At zoom 5.5 a 40 km wide field like Troll is about 50 pixels wide.
+ */
+export const OUTLINE_ZOOM = { load: 4.25, start: 4.75, end: 5.5 } as const
+
+/** The view for the design's "Zoom in to the northern North Sea" button, as [west, south, east, north]. */
+export const NORTH_SEA_VIEW: [number, number, number, number] = [1.5, 58.2, 4.5, 61.6]
+
+const fadeOut = (value: number) => ['interpolate', ['linear'], ['zoom'], OUTLINE_ZOOM.start, value, OUTLINE_ZOOM.end, 0]
+const fadeIn = (value: unknown) => ['interpolate', ['linear'], ['zoom'], OUTLINE_ZOOM.start, 0, OUTLINE_ZOOM.end, value]
+
+/** Circle opacity once the outlines are on the map. Until then, or if they fail to load, the circles stay at every zoom. */
+export const CIRCLE_FADE: Record<string, Record<string, unknown>> = {
+  'fields-not-yet': { 'circle-opacity': fadeOut(1), 'circle-stroke-opacity': fadeOut(0.5) },
+  'fields-stopped': { 'circle-opacity': fadeOut(1), 'circle-stroke-opacity': fadeOut(1) },
+  'fields-producing': { 'circle-opacity': fadeOut(0.85), 'circle-stroke-opacity': fadeOut(1) },
+}
+
+// The year changes every 220 ms while playing, so each outline gets its kind as feature state
+// instead of sending all the outline shapes to the map again.
+const stateKind = ['feature-state', 'kind']
+const outlineColour = ['match', ['get', 'main_product'], 'oil', C.oil, C.gas]
+
+/** Outlines drawn like the circles: filled when producing that year, a ring when stopped, faint when not started. */
+export function outlineLayers() {
+  return [
+    {
+      id: 'outlines-fill',
+      type: 'fill' as const,
+      source: 'outlines',
+      minzoom: OUTLINE_ZOOM.start,
+      paint: {
+        'fill-color': outlineColour,
+        'fill-opacity': fadeIn(['match', stateKind, 'producing', 0.5, 0]),
+      },
+    },
+    {
+      id: 'outlines-line',
+      type: 'line' as const,
+      source: 'outlines',
+      minzoom: OUTLINE_ZOOM.start,
+      paint: {
+        'line-color': outlineColour,
+        'line-width': ['match', stateKind, 'stopped', 2, 1.2],
+        'line-opacity': fadeIn(['match', stateKind, 'not-yet', 0.5, 1]),
+      },
+    },
+  ]
+}
+
+/** Each field's kind in the year, keyed by field id, for the outline feature states. */
+export function outlineStates(fields: FieldSummary[], year: number) {
+  return fields.map((f) => ({ id: f.field_id, kind: fieldKind(f, year) }))
+}
 
 export function describeShelfMap(points: ReturnType<typeof fieldPoints>, year: number): string {
   const count = (kind: FieldKind) => points.features.filter((f) => f.properties.kind === kind).length

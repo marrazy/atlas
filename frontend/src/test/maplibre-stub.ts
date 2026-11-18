@@ -16,6 +16,20 @@ export class Map {
   resize = vi.fn()
   remove = vi.fn()
   fieldsSource = { setData: vi.fn() }
+  sources: Record<string, unknown> = {}
+  /** The zoom the map reports. The whole shelf is about zoom 3. */
+  zoom = 3
+  addSource = vi.fn((id: string, source: unknown) => {
+    this.sources[id] = source
+    return this
+  })
+  addLayer = vi.fn()
+  setPaintProperty = vi.fn()
+  setLayerZoomRange = vi.fn()
+  setFeatureState = vi.fn()
+  flyTo = vi.fn()
+  jumpTo = vi.fn()
+  cameraForBounds = vi.fn(() => ({ center: { lng: 3, lat: 59.9 }, zoom: 4.2, bearing: 0 }))
   touchZoomRotate = { disableRotation: vi.fn() }
   keyboard = { disableRotation: vi.fn() }
 
@@ -34,12 +48,27 @@ export class Map {
     else this.handlers.push({ event, layer: layerOrFn, fn: fn as Handler })
     return this
   }
+  once(event: string, fn: Handler) {
+    const wrapper: Handler = (payload) => {
+      this.off(event, wrapper)
+      fn(payload)
+    }
+    return this.on(event, wrapper)
+  }
+  off(event: string, fn: Handler) {
+    this.handlers = this.handlers.filter((h) => !(h.event === event && h.fn === fn))
+    return this
+  }
   /** Calls the handlers for an event, for example a mouse move over one of the field layers. */
   fire(event: string, layer: string | undefined, payload: unknown = {}) {
-    for (const h of this.handlers) if (h.event === event && h.layer === layer) h.fn(payload)
+    for (const h of [...this.handlers]) if (h.event === event && h.layer === layer) h.fn(payload)
+  }
+  getZoom() {
+    return this.zoom
   }
   getSource(id: string) {
-    return id === 'fields' ? this.fieldsSource : undefined
+    if (id === 'fields') return this.fieldsSource
+    return this.sources[id]
   }
   getCanvas() {
     return this.canvas
