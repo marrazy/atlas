@@ -29,3 +29,9 @@ export const LIFECYCLE_MIN_CUM = 8
  * backend/src/api/routes.py, repeated here only so the page can explain the rule. Keep the two the same.
  */
 export const LIFECYCLE_MIN_YEARS = 4
+
+/** The fields offered to highlight on the lifecycles page, from the design: Volve, Statfjord, Troll, Ekofisk, Gullfaks and Johan Sverdrup. */
+export const LIFECYCLE_PICKS = [VOLVE_ID, 43658, 46437, 43506, 43686, 26376286]
+
+/** How many of the largest fields the years near peak bars show, besides the fields that can be highlighted. */
+export const NEAR_PEAK_LARGEST = 15

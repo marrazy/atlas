@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { Lifecycle } from '@/lib/api/types'
-import { lifecycles } from '@/test/fixtures'
-import { findLifecycle, lifecycleLine, lifecycleStats, median } from './lifecycles'
+import type { FieldSummary, Lifecycle } from '@/lib/api/types'
+import { fields, lifecycles } from '@/test/fixtures'
+import { findLifecycle, lifecycleLine, lifecycleStats, median, nearPeakFields } from './lifecycles'
 
 const volve = lifecycles.fields[0]
 const life = (changes: Partial<Lifecycle>): Lifecycle => ({ ...volve, ...changes })
@@ -66,5 +66,33 @@ describe('findLifecycle', () => {
     expect(findLifecycle(lifecycles, 3420717)?.name).toBe('Volve')
     expect(findLifecycle(lifecycles, 1)).toBeNull()
     expect(findLifecycle(lifecycles, null)).toBeNull()
+  })
+})
+
+describe('nearPeakFields', () => {
+  // four fields: sizes 100, 50, 20 and 5, with 2, 6, 6 and 1 years near peak
+  const big = life({ field_id: 1, name: 'Big', plateau_years: 2 })
+  const mid = life({ field_id: 2, name: 'Mid', plateau_years: 6 })
+  const small = life({ field_id: 3, name: 'Small', plateau_years: 6 })
+  const tiny = life({ field_id: 4, name: 'Tiny', plateau_years: 1 })
+  const set = { fields: [tiny, small, mid, big], median: [] }
+  const sizes: FieldSummary[] = [
+    { ...fields[0], field_id: 1, cum_oe_net_msm3: 100 },
+    { ...fields[0], field_id: 2, cum_oe_net_msm3: 50 },
+    { ...fields[0], field_id: 3, cum_oe_net_msm3: 20 },
+    { ...fields[0], field_id: 4, cum_oe_net_msm3: 5 },
+  ]
+  const names = (list: Lifecycle[]) => list.map((f) => f.name)
+
+  it('keeps the largest fields, most years near peak first, and the larger field first when years are equal', () => {
+    expect(names(nearPeakFields(set, sizes, [], 3))).toEqual(['Mid', 'Small', 'Big'])
+  })
+
+  it('adds the fields that can be highlighted, even when they are not among the largest', () => {
+    expect(names(nearPeakFields(set, sizes, [4], 2))).toEqual(['Mid', 'Big', 'Tiny'])
+  })
+
+  it('does not list a field twice, and skips a pick that is not in the data', () => {
+    expect(names(nearPeakFields(set, sizes, [1, 99], 2))).toEqual(['Mid', 'Big'])
   })
 })

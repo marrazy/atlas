@@ -55,12 +55,15 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
     fontSize: 12,
     fontWeight: 600 as const,
   })
+  // A new highlight is merged into the chart, so each line gets a fixed id by its place. Merging by name
+  // would give a field's new grey line the style of its old highlighted line.
   const quiet = { silent: true, emphasis: { disabled: true }, showSymbol: false, connectNulls: false }
 
   const others = set.fields
     .filter((f) => f.field_id !== highlighted?.field_id)
-    .map((f) => ({
+    .map((f, i) => ({
       ...quiet,
+      id: `other-${i}`,
       name: f.name,
       type: 'line' as const,
       data: lifecycleLine(f.series),
@@ -72,6 +75,7 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
 
   const median = {
     ...quiet,
+    id: 'median',
     name: 'Median of all fields',
     type: 'line' as const,
     data: lifecycleLine(set.median),
@@ -84,6 +88,7 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
 
   const highlight = highlighted && {
     ...quiet,
+    id: 'highlight',
     name: highlighted.name,
     type: 'line' as const,
     data: lifecycleLine(highlighted.series),

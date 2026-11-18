@@ -80,6 +80,12 @@ describe('lifecycleOption', () => {
     expect([label(0), label(10), label(0.4), label(19.9)]).toEqual(['0', '10', '', ''])
   })
 
+  it('gives each line a fixed id by its place, so a new highlight merged into the chart lands on the right line', () => {
+    const ids = (o: ReturnType<typeof lifecycleOption>) => (o.series as { id: string }[]).map((s) => s.id)
+    expect(ids(option)).toEqual(['other-0', 'median', 'highlight'])
+    expect(ids(lifecycleOption(set, heimdal))).toEqual(ids(option))
+  })
+
   it('zooms along the years only, and keeps lines whole at the edges', () => {
     expect(option.toolbox.feature.dataZoom).toEqual({ xAxisIndex: 0, yAxisIndex: false, filterMode: 'none' })
   })

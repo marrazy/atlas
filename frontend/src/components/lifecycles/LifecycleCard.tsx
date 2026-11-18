@@ -76,7 +76,8 @@ export function LifecycleCard({ lifecycles, highlightId, lastFullYear }: Props) 
             <LegendLine colour={CHART_COLOURS.foreground} width={2} dashed label="Median of all fields" />
             <LegendLine colour={CHART_COLOURS.other} width={1} label="Other fields" />
           </div>
-          <EChart option={option} height={CHART_HEIGHT} chartRef={chart} />
+          {/* a new highlight is merged into the chart, so the zoom stays; the number of lines never changes, so nothing is left over */}
+          <EChart option={option} height={CHART_HEIGHT} chartRef={chart} replace={false} />
         </>
       )}
     </ChartCard>
