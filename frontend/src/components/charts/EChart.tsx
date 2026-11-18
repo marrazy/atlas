@@ -6,7 +6,7 @@ import { echarts } from '@/lib/charts/echarts'
 export type EChartHandle = InstanceType<typeof ReactEChartsCore>
 
 /**
- * A canvas does not wait for web fonts, so charts are drawn once Inter and IBM Plex Mono are loaded.
+ * A canvas does not wait for web fonts, so charts are drawn once Geist and Geist Mono are loaded.
  * Otherwise the axis numbers would be drawn in a fallback font.
  */
 function useChartFonts(): boolean {
@@ -16,9 +16,9 @@ function useChartFonts(): boolean {
     if (ready) return
     let current = true
     Promise.all([
-      document.fonts.load('11px "IBM Plex Mono"'),
-      document.fonts.load('600 11px "IBM Plex Mono"'),
-      document.fonts.load('11px "Inter Variable"'),
+      document.fonts.load('11px "Geist Mono Variable"'),
+      document.fonts.load('12px "Geist Variable"'),
+      document.fonts.load('500 12px "Geist Variable"'),
     ])
       .catch(() => undefined)
       .then(() => current && setReady(true))

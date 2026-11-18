@@ -83,6 +83,9 @@ describe('gorNeedsLogScale', () => {
   })
 })
 
+type Axis = { name?: string; nameTextStyle?: object; type: string }
+const gorAxis = (o: ReturnType<typeof productionOption>) => o.yAxis[1] as Axis
+
 describe('productionOption', () => {
   const option = productionOption('Volve', productionSeries(VOLVE)!)
 
@@ -99,9 +102,13 @@ describe('productionOption', () => {
     expect(option.tooltip.trigger).toBe('axis')
   })
 
-  it('has one zoom bar and one area zoom tool that move both charts', () => {
-    expect(option.dataZoom).toEqual([expect.objectContaining({ type: 'slider', xAxisIndex: [0, 1] })])
-    expect(option.toolbox.feature.dataZoom.xAxisIndex).toEqual([0, 1])
+  it('has one quiet zoom bar that moves both charts, and no toolbox', () => {
+    expect(option.dataZoom).toEqual([
+      expect.objectContaining({ type: 'slider', xAxisIndex: [0, 1], backgroundColor: CHART_COLOURS.raised }),
+    ])
+    expect(option.dataZoom[0].handleStyle.color).toBe(CHART_COLOURS.text2)
+    expect(option.dataZoom[0].dataBackground.lineStyle.color).toBe(CHART_COLOURS.otherLine)
+    expect(option).not.toHaveProperty('toolbox')
   })
 
   it('keeps both time axes on the same months, in UTC', () => {
@@ -111,31 +118,38 @@ describe('productionOption', () => {
     expect([bottom.min, bottom.max]).toEqual([top.min, top.max])
   })
 
-  it('names both axes with their units', () => {
-    expect(option.yAxis.map((a) => a.name)).toEqual(['Oil rate, Sm³/day', 'Gas oil ratio, Sm³ gas per Sm³ oil'])
+  it('puts the caption over the gas oil ratio chart, and the oil rate unit in the legend', () => {
+    expect(gorAxis(option).name).toBe('Gas oil ratio, Sm³ gas per Sm³ oil')
+    expect(gorAxis(option).nameTextStyle).toMatchObject({ fontSize: 11, color: CHART_COLOURS.muted })
     expect(option.yAxis[1].type).toBe('value')
+  })
+
+  it('makes the oil rate chart about 200px tall and the gas oil ratio chart about 110px', () => {
+    expect(option.grid.map((g) => g.height)).toEqual([200, 110])
   })
 
   it('switches the gas oil ratio to a labelled log scale for spiky data', () => {
     const spiky = productionOption('Troll', productionSeries([row('1990-01', 60, 171516), ...['02', '03', '04'].map((m) => row(`1990-${m}`, 9000, 3600))])!)
     expect(spiky.yAxis[1].type).toBe('log')
-    expect(spiky.yAxis[1].name).toBe('Gas oil ratio, Sm³ gas per Sm³ oil (log scale)')
+    expect(gorAxis(spiky).name).toBe('Gas oil ratio, Sm³ gas per Sm³ oil, log scale')
   })
 
   it('breaks lines at gaps instead of drawing across them', () => {
     expect(option.series.every((s) => s.connectNulls === false)).toBe(true)
   })
 
-  it('uses the oil and gas colours from the theme', () => {
+  it('uses the oil and gas colours, with the area under the oil rate at 0.12', () => {
     expect(option.series[0].lineStyle.color).toBe(CHART_COLOURS.oil)
+    expect(option.series[0].areaStyle?.opacity).toBe(0.12)
     expect(option.series[1].lineStyle.color).toBe(CHART_COLOURS.gas)
   })
 
-  it('marks the peak month with a pin and its rate', () => {
-    const [pin, label] = option.series[0].markPoint!.data
-    expect(pin.coord).toEqual([monthStart('2008-05'), 4047.7])
-    expect(pin.label.formatter).toBe('PK')
-    expect(label.label.formatter).toBe('Peak 4,048 Sm³/day')
+  it('marks the peak month with a small dot and a plain label, not a pin', () => {
+    const [peak] = option.series[0].markPoint!.data
+    expect(peak.coord).toEqual([monthStart('2008-05'), 4047.7])
+    expect(peak.symbol).toBe('circle')
+    expect(peak.label.formatter).toBe('Peak, May 2008')
+    expect(JSON.stringify(option)).not.toContain('pin')
   })
 
   it('gives the chart a spoken description', () => {
@@ -164,20 +178,16 @@ describe('tooltipText', () => {
     { axisValue: monthStart(month), seriesIndex: 1, data: [monthStart(month), gor] as Point },
   ]
 
-  it('shows the month, the oil rate and the gas oil ratio with units', () => {
-    expect(text(tooltipText(at('2008-12', 8923.8, 145.3)))).toBe(
-      'Dec 2008Oil rate 8,924 Sm³/dayGas oil ratio 145 Sm³/Sm³',
-    )
+  it('shows the month, the oil rate and the gas oil ratio', () => {
+    expect(text(tooltipText(at('2008-12', 8923.8, 145.3)))).toBe('Dec 2008Oil 8,924 Sm³/dayGas oil ratio 145')
   })
 
-  it('says why the gas oil ratio is missing when there was oil', () => {
-    expect(text(tooltipText(at('2008-03', 2689.1, null)))).toBe(
-      'Mar 2008Oil rate 2,689 Sm³/dayGas oil ratio not shown, too little oil or no gas',
-    )
+  it('says "Gas oil ratio not reported" when the ratio is empty', () => {
+    expect(text(tooltipText(at('2008-03', 2689.1, null)))).toBe('Mar 2008Oil 2,689 Sm³/dayGas oil ratio not reported')
   })
 
-  it('says "no data" for a month missing from the data', () => {
-    expect(text(tooltipText(at('2010-06', null, null)))).toBe('Jun 2010Oil rate no dataGas oil ratio no data')
+  it('says so for a month missing from the data', () => {
+    expect(text(tooltipText(at('2010-06', null, null)))).toBe('Jun 2010Oil rate not reportedGas oil ratio not reported')
   })
 
   it('shows nothing when there is nothing under the pointer', () => {
@@ -185,15 +195,15 @@ describe('tooltipText', () => {
   })
 })
 
-describe('productionOption fit window', () => {
-  it('shades the decline fit window on the oil rate chart when one is given', () => {
-    const shaded = productionOption('Volve', productionSeries(VOLVE)!, { start: '2008-03', end: '2008-05' })
-    expect(shaded.series[0].markArea!.data).toEqual([
-      [{ name: 'Decline fit window', xAxis: monthStart('2008-03') }, { xAxis: monthStart('2008-05') }],
+describe('productionOption note', () => {
+  it('draws a light, labelled band for a stretch of months worth pointing out (Volve: output rises again)', () => {
+    const noted = productionOption('Volve', productionSeries(VOLVE)!, { start: '2008-03', end: '2008-05', label: 'Output rises again' })
+    expect(noted.series[0].markArea!.data).toEqual([
+      [{ name: 'Output rises again', xAxis: monthStart('2008-03') }, { xAxis: monthStart('2008-05') }],
     ])
   })
 
-  it('has no shading without a window', () => {
+  it('has no band without a note', () => {
     expect(productionOption('Volve', productionSeries(VOLVE)!).series[0].markArea).toBeUndefined()
   })
 })

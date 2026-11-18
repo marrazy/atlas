@@ -32,12 +32,12 @@ export function FieldPicker({ fields, currentId, currentName, onSelect }: FieldP
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="h-10 min-w-[200px] justify-between gap-2.5 bg-card px-3 text-sm font-normal dark:bg-card dark:hover:bg-accent"
+          className="h-9 min-w-[200px] justify-between gap-2.5 px-3 text-sm"
         >
           <span className="flex items-center gap-2">
             <span className="text-muted-foreground">Field</span> {name ?? '…'}
           </span>
-          <ChevronDownIcon aria-hidden="true" className="text-muted-foreground" />
+          <ChevronDownIcon aria-hidden="true" strokeWidth={1.5} className="text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[260px] p-0">

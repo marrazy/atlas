@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { volveInvestments } from '@/test/fixtures'
-import { CHART_COLOURS } from './colours'
-import { describeInvestment, investmentOption, investmentSeries, investmentTooltip } from './investment-option'
+import { CHART_COLOURS, CHART_FONTS } from './colours'
+import { describeInvestment, investmentOption, investmentSeries, investmentTooltip, shortYear } from './investment-option'
 
 // Fram's real pattern: years with investment, then 2011 and 2013 missing.
 const FRAM_LIKE = [
@@ -34,19 +34,23 @@ describe('investmentOption', () => {
   const option = investmentOption('Volve', investmentSeries(volveInvestments)!)
   const bars = option.series[0].data
 
-  it('draws one bar per year, in the muted colour of the design', () => {
+  it('draws one bar per year with 4px rounded tops, grey except the year with the most investment', () => {
     expect(option.xAxis.data).toEqual(['2005', '2006', '2007'])
     expect(bars.map((b) => b.value)).toEqual([184, 583, 1170])
-    expect(option.series[0].itemStyle.color).toBe(CHART_COLOURS.mutedForeground)
+    expect(bars.map((b) => b.itemStyle.color)).toEqual([CHART_COLOURS.neutralBar, CHART_COLOURS.neutralBar, CHART_COLOURS.text])
+    expect(bars[0].itemStyle.borderRadius).toEqual([4, 4, 0, 0])
   })
 
-  it('writes the value on the two biggest bars only, like the design', () => {
+  it('writes the value in mono on the highest and second highest years only, like the design', () => {
     expect(bars.map((b) => b.label.show)).toEqual([false, true, true])
-    expect(bars[2].label.formatter()).toBe('1,170')
+    expect(bars[2].label.formatter({ value: 1170 })).toBe('1,170')
+    expect(bars[2].label).toMatchObject({ fontFamily: CHART_FONTS.mono, fontSize: 11 })
   })
 
-  it('names the unit on the axis', () => {
-    expect(option.yAxis.name).toBe('Million NOK')
+  it('writes years short, like ’05, and full numbers on the axis, like 1,200', () => {
+    expect(option.xAxis.axisLabel.formatter('2005')).toBe('’05')
+    expect(shortYear(2015)).toBe('’15')
+    expect(option.yAxis.axisLabel.formatter(1200)).toBe('1,200')
   })
 
   it('gives the chart a spoken description with the total', () => {
@@ -76,7 +80,7 @@ describe('investmentTooltip', () => {
 })
 
 describe('investmentOption headroom', () => {
-  it('leaves room above the tallest bar, so its value label does not touch the axis title', () => {
+  it('leaves room above the tallest bar for its value label', () => {
     expect(investmentOption('Volve', investmentSeries(volveInvestments)!).yAxis.boundaryGap).toEqual([0, '15%'])
   })
 })

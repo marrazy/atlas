@@ -1,4 +1,3 @@
-import { LayersIcon, TimerIcon, TrendingUpIcon } from 'lucide-react'
 import { StatCard, StatGrid } from '@/components/StatCard'
 import { LIFECYCLE_MIN_CUM, LIFECYCLE_MIN_YEARS } from '@/config'
 import type { LifecycleSet } from '@/lib/api/types'
@@ -19,19 +18,16 @@ export function LifecycleStats({ lifecycles }: { lifecycles: ApiState<LifecycleS
     <StatGrid>
       <StatCard
         label="Fields compared"
-        icon={LayersIcon}
         value={show((s) => String(s.compared))}
-        note={`At least ${LIFECYCLE_MIN_CUM} million Sm³ o.e. and ${LIFECYCLE_MIN_YEARS} years of production`}
+        note={`At least ${LIFECYCLE_MIN_CUM} million Sm³ o.e. and ${LIFECYCLE_MIN_YEARS} full years`}
       />
       <StatCard
         label="Typical best year"
-        icon={TrendingUpIcon}
         value={show((s) => (s.bestAge === null ? 'No data' : `Year ${formatMedian(s.bestAge)}`))}
         note="Median years from first production to the best year"
       />
       <StatCard
         label="Typical time near peak"
-        icon={TimerIcon}
         value={show((s) =>
           s.nearPeakYears === null ? 'No data' : `${formatMedian(s.nearPeakYears)} ${s.nearPeakYears === 1 ? 'year' : 'years'}`,
         )}

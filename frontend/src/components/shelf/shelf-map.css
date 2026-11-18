@@ -1,30 +1,28 @@
 @import 'maplibre-gl/dist/maplibre-gl.css';
 
-/* MapLibre's own controls are light by default. These match the atlas theme. */
+/* The field tooltip, like the chart tooltips: white, a 1px line border, radius 8px, 12px text, first line 500. */
 .shelf-map .maplibregl-popup-content {
-  background: var(--background);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font: 12px/1.4 var(--font-sans);
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.4);
+  background: var(--card);
+  color: var(--text-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: 12px/18px var(--font-sans);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+.shelf-map .maplibregl-popup-content .tip-title {
+  color: var(--text);
+  font-weight: 500;
 }
 .shelf-map .maplibregl-popup-tip {
   display: none;
 }
-.shelf-map .maplibregl-ctrl-attrib {
-  background: rgb(34 31 30 / 0.85);
-  color: var(--muted-foreground);
-  font: 11px/1.4 var(--font-sans);
-  border-top-left-radius: 6px;
-}
-.shelf-map .maplibregl-ctrl-scale {
-  background: rgb(34 31 30 / 0.8);
-  border-color: var(--foreground);
-  color: var(--foreground);
-  font: 11px/1.4 var(--font-sans);
-}
 .shelf-map .maplibregl-cooperative-gesture-screen {
   font: 14px/1.4 var(--font-sans);
+}
+
+/* names of the big fields get a 3px halo in the sea colour, so they can be read over circles and lines */
+.shelf-map .field-name {
+  -webkit-text-stroke: 3px var(--sea);
+  paint-order: stroke fill;
 }

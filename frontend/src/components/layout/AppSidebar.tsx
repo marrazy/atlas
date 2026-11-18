@@ -1,94 +1,57 @@
-import { DatabaseIcon } from 'lucide-react'
-import { Link, NavLink, useMatch } from 'react-router'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from '@/components/ui/sidebar'
-import { DATA_CREDIT, SITE_NAME } from '@/config'
+import { Link, NavLink } from 'react-router'
+import { SITE_NAME } from '@/config'
 import type { Snapshot } from '@/lib/api/types'
 import type { ApiState } from '@/lib/api/use-api'
 import { formatMonth } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { AppLogo } from './AppLogo'
-import { NAV_ITEMS, type NavItem } from './nav'
+import { NAV_ITEMS } from './nav'
 
-function NavMenuItem({ item, onNavigate }: { item: NavItem; onNavigate: () => void }) {
-  const active = useMatch({ path: item.to, end: item.end ?? false }) !== null
-  const Icon = item.icon
-
+function SnapshotFooter({ snapshot }: { snapshot: ApiState<Snapshot> }) {
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        isActive={active}
-        className="h-10 gap-2.5 rounded-lg px-2.5 text-muted-foreground data-active:text-sidebar-accent-foreground"
-      >
-        <NavLink to={item.to} end={item.end} onClick={onNavigate}>
-          <Icon aria-hidden="true" />
-          <span>{item.label}</span>
-        </NavLink>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  )
-}
-
-function SnapshotCard({ snapshot }: { snapshot: ApiState<Snapshot> }) {
-  return (
-    <div className="flex flex-col gap-1.5 rounded-[10px] border bg-card p-3">
-      <p className="flex items-center gap-2 text-[13px] font-medium">
-        <DatabaseIcon aria-hidden="true" className="size-3.5" />
-        Data snapshot
-      </p>
-      <p className="text-xs leading-normal text-muted-foreground">
-        {snapshot.status === 'ready' && `Production up to ${formatMonth(snapshot.data.last_month, 'long')}. `}
-        {DATA_CREDIT}
-      </p>
+    <div className="mt-6 flex flex-col gap-1 border-t border-sidebar-line px-2.5 pt-4 md:mt-auto">
+      <span className="text-xs text-sidebar-muted">Data snapshot</span>
+      {snapshot.status === 'ready' && (
+        <span className="text-[13px] text-sidebar-text-2">Production to {formatMonth(snapshot.data.last_month)}</span>
+      )}
+      <span className="text-xs leading-normal text-sidebar-muted">
+        Sodir FactPages, Norwegian Licence for Open Government Data
+      </span>
     </div>
   )
 }
 
+/** The dark sidebar from design v2, section 3. On narrow screens it sits above the content. */
 export function AppSidebar({ snapshot }: { snapshot: ApiState<Snapshot> }) {
-  const { setOpenMobile } = useSidebar()
-  const closeOnPhone = () => setOpenMobile(false)
-
   return (
-    <Sidebar>
-      <SidebarHeader className="px-3 pt-4">
-        <Link to="/" onClick={closeOnPhone} className="flex items-center gap-2.5 rounded-lg px-1.5 py-1">
-          <AppLogo />
-          <span className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold">{SITE_NAME}</span>
-            <span className="text-xs text-muted-foreground">Norwegian shelf</span>
-          </span>
-        </Link>
-      </SidebarHeader>
-
-      <SidebarContent className="px-3 pt-3">
-        <SidebarGroup className="p-0">
-          <SidebarGroupLabel className="px-2.5 text-xs text-muted-foreground">Explore</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <nav aria-label="Main">
-              <SidebarMenu className="gap-0.5">
-                {NAV_ITEMS.map((item) => (
-                  <NavMenuItem key={item.to} item={item} onNavigate={closeOnPhone} />
-                ))}
-              </SidebarMenu>
-            </nav>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="px-3 pb-4">
-        <SnapshotCard snapshot={snapshot} />
-      </SidebarFooter>
-    </Sidebar>
+    <aside
+      data-surface="dark"
+      className="flex w-full flex-col bg-sidebar px-3 py-5 text-sidebar-text md:sticky md:top-0 md:h-svh md:w-[248px] md:shrink-0"
+    >
+      <Link to="/" className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sidebar-text">
+        <AppLogo />
+        <span className="text-[15px] font-medium">{SITE_NAME}</span>
+      </Link>
+      <nav aria-label="Main" className="mt-6 flex flex-col gap-0.5">
+        <span className="px-2.5 pb-2 text-xs text-sidebar-muted">Explore</span>
+        {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) =>
+              cn(
+                'flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors hover:bg-sidebar-active hover:text-sidebar-text',
+                isActive ? 'bg-sidebar-active text-sidebar-text' : 'text-sidebar-text-2',
+              )
+            }
+          >
+            <Icon aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.5} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+      <SnapshotFooter snapshot={snapshot} />
+    </aside>
   )
 }

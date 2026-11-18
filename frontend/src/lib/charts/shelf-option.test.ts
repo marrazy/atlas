@@ -1,19 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { shelf } from '@/test/fixtures'
-import { CHART_COLOURS } from './colours'
+import { CHART_COLOURS, CHART_FONTS } from './colours'
 import { describeShelf, formatVolume, shelfOption, shelfTooltip } from './shelf-option'
-
-function contrast(a: string, b: string) {
-  const lum = (hex: string) => {
-    const [r, g, bl] = [1, 3, 5].map((i) => {
-      const c = parseInt(hex.slice(i, i + 2), 16) / 255
-      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-    })
-    return 0.2126 * r + 0.7152 * g + 0.0722 * bl
-  }
-  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x)
-  return (hi + 0.05) / (lo + 0.05)
-}
 
 const option = shelfOption(shelf)
 const [oil, gas] = option.series
@@ -48,22 +36,42 @@ describe('shelfOption', () => {
     expect(gas.markPoint.data[0].label.formatter).toBe('Gas')
   })
 
-  it('puts those words on a dark box so they pass 4.5 to 1', () => {
+  it('writes those words in white, as design v2 asks, inside areas filled at 0.88', () => {
     for (const series of [oil, gas]) {
-      const label = series.markPoint.data[0].label as { color: string; backgroundColor: string }
-      expect(contrast(label.color, label.backgroundColor)).toBeGreaterThanOrEqual(4.5)
+      expect((series.markPoint.data[0].label as { color: string }).color).toBe(CHART_COLOURS.card)
+      expect(series.areaStyle.opacity).toBe(0.88)
     }
   })
 
-  it('marks the peak year from the API with a pin and its total', () => {
-    const [, pin, text] = gas.markPoint.data
-    expect(pin.coord).toEqual(['2004', 264.406])
-    expect(pin.label.formatter).toBe('PK')
-    expect(text.label.formatter).toBe('Peak 2004, 264')
+  it('puts a 2px white line between the oil and gas areas', () => {
+    expect(gas.lineStyle).toEqual({ width: 2, color: CHART_COLOURS.card })
   })
 
-  it('names the unit on the axis', () => {
-    expect(option.yAxis.name).toBe('Million Sm³ o.e.')
+  it('marks the peak year from the API with a short line and a plain label, not a pin', () => {
+    const peak = gas.markPoint.data[1] as unknown as { coord: unknown; symbol: string; symbolSize: number[]; label: { formatter: string } }
+    expect(peak.coord).toEqual(['2004', 264.406])
+    expect(peak.symbol).toBe('rect')
+    expect(peak.symbolSize).toEqual([1, 14])
+    expect(peak.label.formatter).toBe('Peak 2004, 264')
+    expect(JSON.stringify(option)).not.toContain('pin')
+  })
+
+  it('draws grid lines but no axis lines or ticks, with mono axis labels', () => {
+    expect(option.yAxis.splitLine.lineStyle).toMatchObject({ color: CHART_COLOURS.chartGrid, type: 'solid', width: 1 })
+    for (const axis of [option.xAxis, option.yAxis]) {
+      expect(axis.axisLine.show).toBe(false)
+      expect(axis.axisTick.show).toBe(false)
+      expect(axis.axisLabel).toMatchObject({ fontSize: 11, color: CHART_COLOURS.muted, fontFamily: CHART_FONTS.mono })
+    }
+  })
+
+  it('labels the first year and each decade on the x axis, like the design', () => {
+    const show = option.xAxis.axisLabel.interval
+    expect([show(0, '1971'), show(1, '1972'), show(9, '1980'), show(10, '1981')]).toEqual([true, false, true, false])
+  })
+
+  it('has no toolbox', () => {
+    expect(option).not.toHaveProperty('toolbox')
   })
 
   it('gives the chart a spoken description', () => {
@@ -75,22 +83,17 @@ describe('shelfOption', () => {
 })
 
 describe('year line', () => {
-  type MarkLine = { data: { xAxis: string }[]; label: { formatter: string; color: string; backgroundColor: string } }
+  type MarkLine = { data: { xAxis: string }[]; lineStyle: { color: string; type: number[] } }
   const lineOf = (o: ReturnType<typeof shelfOption>) => (o.series[0] as unknown as { markLine: MarkLine }).markLine
 
-  it('marks the year chosen on the map with a line and the year in a box', () => {
+  it('marks the year chosen on the map with a dashed line in the text colour', () => {
     const line = lineOf(shelfOption(shelf, 1972))
     expect(line.data).toEqual([{ xAxis: '1972' }])
-    expect(line.label.formatter).toBe('1972')
+    expect(line.lineStyle).toMatchObject({ color: CHART_COLOURS.text, type: [4, 3] })
   })
 
   it('draws no line before a year is chosen', () => {
     expect(lineOf(shelfOption(shelf)).data).toEqual([])
-  })
-
-  it('writes the year in dark text on a light box, above 4.5 to 1', () => {
-    const { label } = lineOf(shelfOption(shelf, 1972))
-    expect(contrast(label.color, label.backgroundColor)).toBeGreaterThanOrEqual(4.5)
   })
 })
 
@@ -99,11 +102,11 @@ describe('shelfTooltip', () => {
     new DOMParser().parseFromString(shelfTooltip(shelf.years)([{ name: year }]), 'text/html').body.textContent
 
   it('shows oil, gas and the total for the year, with the unit', () => {
-    expect(text('2004')).toBe('2004Oil, NGL and condensate 185Gas 79Total 264 million Sm³ o.e.')
+    expect(text('2004')).toBe('2004Oil 185 · Gas 79Total 264 million Sm³ o.e.')
   })
 
   it('keeps a decimal for the first years, when production was small', () => {
-    expect(text('1971')).toBe('1971Oil, NGL and condensate 0.4Gas 0.0Total 0.4 million Sm³ o.e.')
+    expect(text('1971')).toBe('1971Oil 0.4 · Gas 0.0Total 0.4 million Sm³ o.e.')
   })
 
   it('shows nothing for a year that is not in the data', () => {
@@ -113,10 +116,10 @@ describe('shelfTooltip', () => {
 
 describe('shelfOption on a phone', () => {
   const peakLabel = (o: ReturnType<typeof shelfOption>) =>
-    (o.series[1].markPoint.data[2] as { label: { position: string; offset: number[] } }).label
+    (o.series[1].markPoint.data[1] as unknown as { label: { position: string } }).label
 
-  it('puts the peak label left of the pin, so it does not run into the year line at the right edge', () => {
-    expect(peakLabel(shelfOption(shelf))).toMatchObject({ position: 'right', offset: [12, -20] })
-    expect(peakLabel(shelfOption(shelf, null, true))).toMatchObject({ position: 'left', offset: [-12, -20] })
+  it('puts the peak label left of its line, so it does not run into the year line at the right edge', () => {
+    expect(peakLabel(shelfOption(shelf)).position).toBe('top')
+    expect(peakLabel(shelfOption(shelf, null, true)).position).toBe('left')
   })
 })

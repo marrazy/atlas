@@ -5,7 +5,9 @@ import { fields, shelf, snapshot } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
 import { renderApp, setWindowWidth } from '@/test/render-app'
 
-const API = { '/api/snapshot': snapshot, '/api/shelf': shelf, '/api/fields': fields }
+// the shelf fixture with 2025 added, the last full year in the real data
+const SHELF = { ...shelf, years: [...shelf.years, { year: 2025, liquids_net_msm3: 118.649, gas_net_bsm3: 121.831, oe_net_msm3: 240.48 }] }
+const API = { '/api/snapshot': snapshot, '/api/shelf': SHELF, '/api/fields': fields }
 
 /** The texts in one stat card: label, value and note. */
 function card(label: string) {
@@ -22,24 +24,24 @@ beforeEach(() => {
 })
 
 describe('Shelf map stat cards', () => {
-  it('show the shelf numbers from /api/shelf, and say how far the total goes', async () => {
+  it('show the four numbers of design v2, from /api/shelf and /api/fields', async () => {
     renderApp('/')
     await screen.findByText('9.1 bn Sm³')
-    expect(card('Producing fields')).toEqual(['Producing fields', '102', 'Current status at Sodir'])
-    await waitFor(() =>
-      expect(card('Produced since 1971')).toEqual([
-        'Produced since 1971',
-        '9.1 bn Sm³',
-        'Oil equivalent, all fields, up to Aug 2026',
-      ]),
-    )
+    await waitFor(() => expect(card('Producing fields')).toEqual(['Producing fields', '102', 'Of 3 fields on the shelf']))
+    expect(card('Produced since 1971')).toEqual(['Produced since 1971', '9.1 bn Sm³', 'Oil equivalent, all fields'])
     expect(card('Peak year')).toEqual(['Peak year', '2004', '264 million Sm³ o.e.'])
+    expect(card('Gas share of output')).toEqual(['Gas share of output', '51%', 'In 2025, vs 30% in 2004'])
   })
 
-  it('count mapped fields from /api/fields, with the ones that never produced', async () => {
+  it('tint the peak year card for oil and the gas share card for gas, with a gas dot, and leave the rest white', async () => {
     renderApp('/')
-    await screen.findByText('Including 1 with no production yet')
-    expect(card('Fields mapped')).toEqual(['Fields mapped', '2', 'Including 1 with no production yet'])
+    await screen.findByText('51%')
+    const box = (label: string) => screen.getByText(label, { selector: 'dt' }).parentElement!
+    expect(box('Peak year')).toHaveClass('bg-tint-oil')
+    expect(box('Gas share of output')).toHaveClass('bg-tint-gas')
+    expect(box('Gas share of output').querySelector('.bg-gas')).not.toBeNull()
+    expect(box('Producing fields')).toHaveClass('bg-card')
+    expect(box('Producing fields').querySelector('svg')).toBeNull()
   })
 
   it('say "Not available" instead of loading forever when the shelf data fails', async () => {
@@ -56,7 +58,7 @@ describe('Shelf map errors', () => {
     let calls = 0
     mockApi({
       ...API,
-      '/api/shelf': () => Promise.resolve(++calls === 1 ? json({ detail: 'database is down' }, 500) : json(shelf)),
+      '/api/shelf': () => Promise.resolve(++calls === 1 ? json({ detail: 'database is down' }, 500) : json(SHELF)),
     })
     renderApp('/')
     const alert = await screen.findByRole('alert')
@@ -71,18 +73,16 @@ describe('Shelf map errors', () => {
 })
 
 describe('Shelf map page', () => {
-  it('builds its description from the data: the first field, its year, and the snapshot month', async () => {
+  it('has the page title only, with no subtitle', async () => {
     renderApp('/')
-    // in this test data Volve (2008) is the earliest field, in the real data it is Ekofisk (1971)
-    expect(
-      await screen.findByText('Every oil and gas field on the Norwegian Continental Shelf, from Volve in 2008 to August 2026.'),
-    ).toBeInTheDocument()
+    const title = await screen.findByRole('heading', { level: 1, name: 'Shelf map' })
+    expect(title.nextElementSibling?.tagName).not.toBe('P')
   })
 
   it('shows the map of the fields', async () => {
     renderApp('/')
     expect(await screen.findByRole('heading', { level: 2, name: 'Fields on the shelf' })).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'Show the whole shelf' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Zoom out to the whole shelf' })).toBeInTheDocument()
   })
 
   it('shows the shelf production chart with its spoken description', async () => {
@@ -101,7 +101,7 @@ describe('Shelf map page', () => {
     await waitFor(() => expect(lineYear()).toBe('2025'))
 
     fireEvent.change(slider, { target: { value: '2012' } })
-    expect(screen.getByText('1 field had production in 2012.')).toBeInTheDocument()
+    expect(screen.getByText(/1 field producing$/)).toHaveTextContent('In 2012, 1 field producing')
     await waitFor(() => expect(lineYear()).toBe('2012'))
   })
 
@@ -109,7 +109,6 @@ describe('Shelf map page', () => {
     renderApp('/')
     expect(await screen.findByRole('heading', { level: 2, name: 'Largest fields' })).toBeInTheDocument()
     expect(await screen.findByRole('link', { name: 'Volve' })).toHaveAttribute('href', '/fields/3420717')
-    expect(await screen.findByText('By total saleable production, up to August 2026.')).toBeInTheDocument()
   })
 
   it('updates the chart in place, so the year line moves without redrawing the areas', async () => {

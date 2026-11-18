@@ -3,7 +3,7 @@ import type { DeclineResult } from '@/lib/api/types'
 import { monthStart } from '@/lib/format'
 import { volveDeclineHyperbolic, volveLateProduction } from '@/test/fixtures'
 import { CHART_COLOURS } from './colours'
-import { declineOption, describeDecline } from './decline-option'
+import { LOG_STEPS, chartStart, declineOption, describeDecline, logRange } from './decline-option'
 
 const WINDOW = { start: '2015-04', end: '2016-08' }
 const input = (result: DeclineResult = volveDeclineHyperbolic, shutDown: string | null = '2016-09') => ({
@@ -25,12 +25,13 @@ describe('declineOption', () => {
     expect(inside.itemStyle!.color).toBe(CHART_COLOURS.oil)
   })
 
-  it('shows the months around the window as muted points, including the shutdown month', () => {
+  it('shows the months around the window as faint oil rings, including the shutdown month', () => {
     const outside = series('Outside the fit window')
     expect(months(outside.data as [number, number][])).toEqual([
       '2014-08', '2014-09', '2014-10', '2014-11', '2014-12', '2015-01', '2015-02', '2015-03', '2016-09',
     ])
-    expect(outside.itemStyle!.color).toBe(CHART_COLOURS.other)
+    expect(outside.itemStyle).toMatchObject({ color: 'transparent', borderColor: CHART_COLOURS.oil, opacity: 0.6 })
+    expect([series('Monthly oil rate').symbolSize, outside.symbolSize]).toEqual([7, 6])
   })
 
   it('draws the fitted curve, and a dashed forecast that starts where the fit ends', () => {
@@ -44,7 +45,8 @@ describe('declineOption', () => {
       [monthStart('2016-09'), 876.3],
       [monthStart('2016-10'), 814.8],
     ])
-    expect(forecast.lineStyle!.type).toEqual([5, 4])
+    expect(forecast.lineStyle!.type).toEqual([4, 3])
+    expect([series('Fitted curve').lineStyle!.color, forecast.lineStyle!.color]).toEqual([CHART_COLOURS.gas, CHART_COLOURS.gas])
   })
 
   it('fills the forecast range from low to high', () => {
@@ -55,6 +57,7 @@ describe('declineOption', () => {
     const band = series('Forecast range')
     expect(band.stack).toBe('range')
     expect((band.data as [number, number][]).map(([, v]) => Math.round(v * 10) / 10)).toEqual([384.4, 367.3])
+    expect(band.areaStyle).toEqual({ color: CHART_COLOURS.gas, opacity: 0.16 })
   })
 
   it('shades the fit window and labels it', () => {
@@ -63,23 +66,39 @@ describe('declineOption', () => {
     ])
   })
 
-  it('marks the economic limit and, for a field that shut down, the shutdown month', () => {
-    const lines = series('Forecast').markLine!.data
-    expect(lines.map((l) => l.label.formatter)).toEqual([
-      'Economic limit, 300 Sm³/day (example)',
-      'Shut down, Sep 2016',
-    ])
-    expect(lines[0]).toMatchObject({ yAxis: 300 })
+  it('marks the economic limit and, for a field that shut down, the shutdown month with a flat label', () => {
+    const lines = series('Forecast').markLine!.data as { yAxis?: number; xAxis?: number; lineStyle: { color: string }; label: { formatter?: string } }[]
+    expect(lines[0]).toMatchObject({ yAxis: 300, lineStyle: { color: CHART_COLOURS.text2 } })
+    expect(lines[0].label.formatter).toBe('Economic limit, 300 Sm³/day')
+    expect(lines[1]).toMatchObject({ xAxis: monthStart('2016-09'), lineStyle: { color: CHART_COLOURS.muted } })
+    const label = series('Forecast').markPoint!.data[0].label
+    expect([label.formatter, label.position]).toEqual(['Shut down, Sep 2016', 'right'])
   })
 
   it('has no shutdown line for a field still producing', () => {
-    const lines = declineOption(input(volveDeclineHyperbolic, null)).series.find((s) => s.name === 'Forecast')!.markLine!.data
-    expect(lines).toHaveLength(1)
+    const forecast = declineOption(input(volveDeclineHyperbolic, null)).series.find((s) => s.name === 'Forecast')!
+    expect(forecast.markLine!.data).toHaveLength(1)
+    expect(forecast.markPoint).toBeUndefined()
   })
 
-  it('starts the axis two years before the window and ends at the last forecast month', () => {
+  it('starts the axis in January two years before the window, or at the first month of data, and ends at the last forecast month', () => {
+    expect(chartStart(WINDOW, volveLateProduction)).toBe('2014-08')
+    expect(chartStart(WINDOW, [{ ...volveLateProduction[0], month: '2008-02' }])).toBe('2013-01')
     expect(option.xAxis.min).toBe(monthStart('2014-08'))
     expect(option.xAxis.max).toBe(monthStart('2016-10'))
+  })
+
+  it('uses a log y axis with labels at 30, 100, 300, 1k, 3k and 10k, the way engineers read a decline', () => {
+    expect(option.yAxis).toMatchObject({ type: 'log', logBase: 10 })
+    expect(logRange([40, 287, 3007.5])).toEqual({ min: 30, max: 10000, steps: [30, 100, 300, 1000, 3000, 10000] })
+    expect(option.yAxis.axisLabel.customValues).toEqual(LOG_STEPS.filter((v) => v >= option.yAxis.min && v <= option.yAxis.max))
+    expect(option.yAxis.axisLabel.formatter(1000)).toBe('1k')
+  })
+
+  it('leaves months with no oil out of the dots, since a log axis cannot show them', () => {
+    const withZero = declineOption({ ...input(), months: [...volveLateProduction, { ...volveLateProduction[0], month: '2016-10', oil_rate: 0 }] })
+    const outside = withZero.series.find((s) => s.name === 'Outside the fit window')!
+    expect(months(outside.data as [number, number][])).not.toContain('2016-10')
   })
 
   it('gives the chart a spoken description', () => {
@@ -103,19 +122,12 @@ describe('decline tooltip', () => {
   })
 
   it('shows the forecast with its range', () => {
-    expect(text('2016-10')).toBe('Oct 2016Forecast 815 Sm³/day (652 to 1,019)')
+    expect(text('2016-10')).toBe('Oct 2016Forecast 815 Sm³/day, range 652 to 1,019')
   })
 
   it('shows the shutdown month and its forecast together', () => {
     expect(text('2016-09')).toBe(
-      'Sep 2016Oil rate, outside the fit window, 287 Sm³/dayForecast 876 Sm³/day (705 to 1,089)',
+      'Sep 2016Oil rate, outside the fit window, 287 Sm³/dayForecast 876 Sm³/day, range 705 to 1,089',
     )
-  })
-})
-
-describe('declineOption on a phone', () => {
-  it('leaves out the axis title, which would run into the shut down label, since the legend gives the unit', () => {
-    expect(option.yAxis.name).toBe('Oil rate, Sm³/day')
-    expect(declineOption({ ...input(), compact: true }).yAxis.name).toBe('')
   })
 })

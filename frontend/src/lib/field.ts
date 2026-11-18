@@ -1,4 +1,4 @@
-import type { FieldDetail, MainProduct, ProductionMonth, YearMonth } from '@/lib/api/types'
+import type { MainProduct, ProductionMonth, YearMonth } from '@/lib/api/types'
 
 function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
@@ -8,29 +8,17 @@ export function productLabel(product: MainProduct): string {
   return capitalise(product)
 }
 
-/** "OIL/GAS" → "Oil and gas", "GAS/CONDENSATE" → "Gas and condensate". */
-export function hydrocarbonLabel(hcType: string): string {
-  return capitalise(hcType.toLowerCase().split('/').join(' and '))
-}
-
-/** "North sea" → "North Sea". */
-export function areaLabel(mainArea: string): string {
-  return mainArea.split(' ').map(capitalise).join(' ')
-}
-
-/** A short line about the field, built only from Sodir data. */
-export function describeField(
-  field: Pick<FieldDetail, 'hc_type' | 'main_area' | 'discovery_year' | 'operator_full'>,
-): string {
-  const discovered = field.discovery_year ? `, discovered in ${field.discovery_year}` : ''
-  const operated = field.operator_full ? ` Operated by ${field.operator_full}.` : ''
-  return `${hydrocarbonLabel(field.hc_type)} field in the ${areaLabel(field.main_area)}${discovered}.${operated}`
-}
-
 /** First and last month with output, or null when the field has none. The API sends months in order. */
 export function productionSpan(months: ProductionMonth[]): { first: YearMonth; last: YearMonth } | null {
   if (months.length === 0) return null
   return { first: months[0].month, last: months[months.length - 1].month }
+}
+
+/** Months from the first to the last month with production, in years. Feb 2008 to Sep 2016 is 103 months, 8.6 years. */
+export function producingLifeYears(span: { first: YearMonth; last: YearMonth }): number {
+  const [fy, fm] = span.first.split('-').map(Number)
+  const [ly, lm] = span.last.split('-').map(Number)
+  return ((ly - fy) * 12 + (lm - fm)) / 12
 }
 
 /** Lower case, with Norwegian letters written the way people type them without a Norwegian keyboard. */
@@ -41,14 +29,6 @@ export function foldForSearch(text: string): string {
     .replaceAll('ø', 'o')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-}
-
-/** "Åsgard" → "asgard", "Oseberg Øst" → "oseberg-ost". For file names. */
-export function fieldSlug(name: string): string {
-  const slug = foldForSearch(name)
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-  return slug || 'field'
 }
 
 /** Search score for the field picker: names starting with the search first, then names containing it. */

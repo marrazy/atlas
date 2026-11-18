@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChartCard } from '@/components/ChartCard'
+import { PageFooter } from '@/components/layout/PageFooter'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useSnapshot } from '@/components/layout/snapshot-context'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -70,7 +71,7 @@ export function MethodsPage() {
   return (
     <>
       <title>{pageTitle('Methods')}</title>
-      <PageHeader title="Methods" description="Where the numbers come from, the units they use, and how each chart is worked out." />
+      <PageHeader title="Methods" />
       <div className="flex flex-col gap-4">
         <ChartCard title="The data" busy={snapshot.status === 'loading'}>
           <Prose>
@@ -119,10 +120,10 @@ export function MethodsPage() {
           </div>
         </ChartCard>
 
-        <ChartCard title="Decline curves" description="The forecast on the field deep dive.">
+        <ChartCard title="Decline curves">
           <Prose>
             <p>
-              The app fits an Arps decline curve to the field&apos;s monthly oil rate. Arps describes how a rate falls over time,
+              The field deep dive fits an Arps decline curve to the field&apos;s monthly oil rate, and shows it on a log scale. Arps describes how a rate falls over time,
               with three versions:
             </p>
             <div className="flex flex-col gap-2">
@@ -206,6 +207,7 @@ export function MethodsPage() {
           </Prose>
         </ChartCard>
       </div>
+      <PageFooter />
     </>
   )
 }

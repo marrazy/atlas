@@ -1,6 +1,6 @@
 import type { ShelfSummary, ShelfYear } from '@/lib/api/types'
 import { formatCompact, formatNumber } from '@/lib/format'
-import { CHART_COLOURS as C, CHART_FONTS as F } from './colours'
+import { AXIS_LABEL, CHART_COLOURS as C, CHART_FONTS as F, SPLIT_LINE, TOOLTIP_STYLE } from './colours'
 
 /** Million Sm³ o.e.: whole numbers, with one decimal for the small early years so they do not show as 0. */
 export function formatVolume(value: number): string {
@@ -14,107 +14,91 @@ export function describeShelf(shelf: ShelfSummary): string {
   return `Stacked area chart of yearly saleable production on the shelf, oil below and gas above, ${first} to ${last}. Peak in ${shelf.peak_year} at ${formatVolume(shelf.peak_oe_net_msm3)} million Sm³ o.e.`
 }
 
+/** The tooltip from the design: the year in medium weight, then oil, gas and the total. */
 export function shelfTooltip(years: ShelfYear[]) {
   const byYear = new Map(years.map((y) => [String(y.year), y]))
   return (params: { name: string }[]) => {
     const y = params[0] && byYear.get(params[0].name)
     if (!y) return ''
-    const row = (label: string, value: number) =>
-      `<div style="color:${C.mutedForeground}">${label} <span style="color:${C.foreground};font-family:${F.mono}">${formatVolume(value)}</span></div>`
+    const row = (text: string) => `<div style="color:${C.text2}">${text}</div>`
     return [
-      `<div style="font-weight:600;margin-bottom:4px">${y.year}</div>`,
-      row('Oil, NGL and condensate', y.liquids_net_msm3),
-      row('Gas', y.gas_net_bsm3),
-      `<div style="color:${C.mutedForeground}">Total <span style="color:${C.foreground};font-family:${F.mono}">${formatVolume(y.oe_net_msm3)}</span> million Sm³ o.e.</div>`,
+      `<div style="font-weight:500;margin-bottom:2px;color:${C.text}">${y.year}</div>`,
+      row(`Oil ${formatVolume(y.liquids_net_msm3)} · Gas ${formatVolume(y.gas_net_bsm3)}`),
+      row(`Total ${formatVolume(y.oe_net_msm3)} million Sm³ o.e.`),
     ].join('')
   }
 }
 
-/** Where to write "Oil" and "Gas" inside their areas: the middle of each band, in the year that band is widest. */
+/**
+ * Where to write "Oil" and "Gas" inside their areas: the middle of each band, in the year that band is widest.
+ * The last few years are left out, so a label is never cut off at the right edge of the chart.
+ */
 function areaLabelPoints(years: ShelfYear[]) {
-  const widest = (key: 'liquids_net_msm3' | 'gas_net_bsm3') => years.reduce((best, y) => (y[key] > best[key] ? y : best))
+  const inner = years.length > 12 ? years.slice(0, -8) : years
+  const widest = (key: 'liquids_net_msm3' | 'gas_net_bsm3') => inner.reduce((best, y) => (y[key] > best[key] ? y : best))
   const oil = widest('liquids_net_msm3')
   const gas = widest('gas_net_bsm3')
   return {
-    oil: { coord: [String(oil.year), oil.liquids_net_msm3 / 2] },
-    gas: { coord: [String(gas.year), gas.liquids_net_msm3 + gas.gas_net_bsm3 / 2] },
+    oil: [String(oil.year), oil.liquids_net_msm3 / 2],
+    gas: [String(gas.year), gas.liquids_net_msm3 + gas.gas_net_bsm3 / 2],
   }
 }
 
-/** The dashed line and year box that follow the map's year slider. */
+/** The dashed line that follows the map's year slider. */
 function yearLine(year: number | null) {
   return {
     silent: true,
     symbol: 'none',
     animationDurationUpdate: 150,
-    lineStyle: { color: C.foreground, type: [4, 3], width: 1 },
-    label: {
-      show: true,
-      position: 'start' as const,
-      formatter: String(year),
-      color: C.background,
-      backgroundColor: C.foreground,
-      padding: [3, 6],
-      borderRadius: 4,
-      fontFamily: F.mono,
-      fontSize: 11,
-      fontWeight: 600,
-    },
+    lineStyle: { color: C.text, type: [4, 3], width: 1 },
+    label: { show: false },
     data: year === null ? [] : [{ xAxis: String(year) }],
   }
 }
 
-/** `compact` is for phone screens, where the peak label goes left of the pin so it does not run into the year line. */
+/** `compact` is for phone screens, where the peak label goes left of its line so it does not run into the year line. */
 export function shelfOption(shelf: ShelfSummary, year: number | null = null, compact = false) {
   const years = shelf.years
   const labels = areaLabelPoints(years)
-  const axisText = { color: C.mutedForeground, fontFamily: F.mono, fontSize: 11 }
-  // Light or dark text straight on the orange and blue areas is under 4 to 1, so the words sit on a small dark box.
   const areaName = (text: string, coord: (string | number)[]) => ({
     coord,
     symbol: 'circle',
     symbolSize: 0,
-    label: {
-      show: true,
-      formatter: text,
-      color: C.foreground,
-      backgroundColor: C.background,
-      padding: [2, 6],
-      borderRadius: 4,
-      fontFamily: F.sans,
-      fontSize: 12,
-      fontWeight: 600,
-    },
+    label: { show: true, formatter: text, color: C.card, fontFamily: F.sans, fontSize: 11, fontWeight: 500 },
   })
+  // a short vertical line above the peak, with a plain text label
+  const peak = [String(shelf.peak_year), shelf.peak_oe_net_msm3]
 
   return {
     animationDuration: 400,
     aria: { enabled: true, label: { description: describeShelf(shelf) } },
-    textStyle: { fontFamily: F.sans, color: C.foreground },
-    grid: { left: 48, right: 16, top: 34, bottom: 28 },
+    textStyle: { fontFamily: F.sans, color: C.text },
+    grid: { left: 36, right: 8, top: 24, bottom: 24 },
     xAxis: {
       type: 'category' as const,
       boundaryGap: false,
       data: years.map((y) => String(y.year)),
-      axisLine: { lineStyle: { color: C.border } },
+      axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { ...axisText, hideOverlap: true },
+      // the first year and each decade, like the design: 1971, 1980, 1990 and so on
+      axisLabel: {
+        ...AXIS_LABEL,
+        hideOverlap: true,
+        interval: (index: number, value: string) => index === 0 || Number(value) % 10 === 0,
+      },
     },
     yAxis: {
       type: 'value' as const,
-      name: 'Million Sm³ o.e.',
-      nameTextStyle: { color: C.mutedForeground, fontFamily: F.sans, fontSize: 11, align: 'left' as const },
-      nameGap: 12,
       boundaryGap: [0, '12%'],
-      axisLabel: { ...axisText, formatter: formatCompact },
-      splitLine: { lineStyle: { color: C.border, type: [3, 3] } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { ...AXIS_LABEL, formatter: formatCompact },
+      splitLine: SPLIT_LINE,
     },
     tooltip: {
+      ...TOOLTIP_STYLE,
       trigger: 'axis' as const,
-      axisPointer: { type: 'line' as const, lineStyle: { color: C.mutedForeground } },
-      backgroundColor: C.background,
-      borderColor: C.border,
-      textStyle: { color: C.foreground, fontFamily: F.sans, fontSize: 12 },
+      axisPointer: { type: 'line' as const, lineStyle: { color: C.muted, width: 1 } },
       formatter: shelfTooltip(years),
     },
     series: [
@@ -123,11 +107,14 @@ export function shelfOption(shelf: ShelfSummary, year: number | null = null, com
         type: 'line' as const,
         stack: 'total',
         data: years.map((y) => y.liquids_net_msm3),
-        symbol: 'none',
+        symbol: 'circle',
+        symbolSize: 8,
+        showSymbol: false,
         lineStyle: { width: 0 },
-        itemStyle: { color: C.oil },
-        areaStyle: { color: C.oil, opacity: 0.9 },
-        markPoint: { silent: true, data: [areaName('Oil', labels.oil.coord)] },
+        itemStyle: { color: C.oil, borderColor: C.card, borderWidth: 2 },
+        areaStyle: { color: C.oil, opacity: 0.88 },
+        emphasis: { disabled: true },
+        markPoint: { silent: true, data: [areaName('Oil', labels.oil)] },
         markLine: yearLine(year),
       },
       {
@@ -135,31 +122,30 @@ export function shelfOption(shelf: ShelfSummary, year: number | null = null, com
         type: 'line' as const,
         stack: 'total',
         data: years.map((y) => y.gas_net_bsm3),
-        symbol: 'none',
+        symbol: 'circle',
+        symbolSize: 8,
+        showSymbol: false,
+        // the 2px white line between the oil and gas areas
         lineStyle: { width: 2, color: C.card },
-        itemStyle: { color: C.gas },
-        areaStyle: { color: C.gas, opacity: 0.9 },
+        itemStyle: { color: C.gas, borderColor: C.card, borderWidth: 2 },
+        areaStyle: { color: C.gas, opacity: 0.88 },
+        emphasis: { disabled: true },
         markPoint: {
           silent: true,
           data: [
-            areaName('Gas', labels.gas.coord),
+            areaName('Gas', labels.gas),
             {
-              coord: [String(shelf.peak_year), shelf.peak_oe_net_msm3],
-              symbol: 'pin',
-              symbolSize: 30,
-              itemStyle: { color: C.foreground },
-              label: { show: true, formatter: 'PK', color: C.background, fontSize: 9, fontWeight: 700, fontFamily: F.sans },
-            },
-            {
-              coord: [String(shelf.peak_year), shelf.peak_oe_net_msm3],
-              symbol: 'circle',
-              symbolSize: 0,
+              coord: peak,
+              symbol: 'rect',
+              symbolSize: [1, 14],
+              symbolOffset: [0, -10],
+              itemStyle: { color: C.text2 },
               label: {
                 show: true,
-                position: compact ? ('left' as const) : ('right' as const),
-                offset: compact ? [-12, -20] : [12, -20],
+                position: compact ? ('left' as const) : ('top' as const),
+                distance: 4,
                 formatter: `Peak ${shelf.peak_year}, ${formatVolume(shelf.peak_oe_net_msm3)}`,
-                color: C.foreground,
+                color: C.text2,
                 fontFamily: F.sans,
                 fontSize: 11,
               },

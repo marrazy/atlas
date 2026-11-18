@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DATA_CREDIT, SOURCE_CODE_URL } from '@/config'
+import { CREDIT_LINE, DATA_CREDIT, SOURCE_CODE_URL } from '@/config'
 import { fields, snapshot, volve, volveProduction } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
 import { renderApp as renderAt, setWindowWidth as setWidth } from '@/test/render-app'
 
 const nav = () => screen.getByRole('navigation', { name: 'Main' })
-const breadcrumb = () => screen.getByRole('navigation', { name: 'breadcrumb' })
+const breadcrumb = () => screen.getByRole('navigation', { name: 'Breadcrumb' })
 
 beforeEach(() => {
   setWidth(1280)
@@ -71,74 +71,90 @@ describe('routes', () => {
   })
 })
 
-describe('header', () => {
-  it('shows the snapshot month from /api/snapshot', async () => {
+describe('header and sidebar', () => {
+  it('has no snapshot pill in the header; the sidebar footer gives the month from /api/snapshot', async () => {
     renderAt('/')
-    expect(await screen.findByText('Snapshot · Aug 2026')).toBeInTheDocument()
+    expect(await screen.findByText('Production to Aug 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/Snapshot ·/)).not.toBeInTheDocument()
+    expect(screen.getByText('Data snapshot')).toBeInTheDocument()
+    expect(screen.getByText('Sodir FactPages, Norwegian Licence for Open Government Data')).toBeInTheDocument()
     expect(fetch).toHaveBeenCalledWith('/api/snapshot', expect.anything())
   })
 
-  it('still shows the badge, without a date, when the snapshot cannot be loaded', async () => {
+  it('leaves the month out of the sidebar footer when the snapshot cannot be loaded', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
     renderAt('/')
     await waitFor(() => expect(fetch).toHaveBeenCalled())
-    expect(screen.getByText('Snapshot')).toBeInTheDocument()
-    expect(screen.queryByText(/Snapshot ·/)).not.toBeInTheDocument()
+    expect(screen.getByText('Data snapshot')).toBeInTheDocument()
+    expect(screen.queryByText(/Production to/)).not.toBeInTheDocument()
   })
 
-  it('loads the snapshot again on the next screen when it failed, and then shows the date', async () => {
+  it('loads the snapshot again on the next screen when it failed, and then shows the month', async () => {
     let calls = 0
     mockApi({
       '/api/snapshot': () => Promise.resolve(++calls === 1 ? json({}, 503) : json(snapshot)),
     })
     renderAt('/')
     await waitFor(() => expect(calls).toBe(1))
-    expect(await screen.findByText('Snapshot')).toBeInTheDocument()
+    expect(screen.queryByText(/Production to/)).not.toBeInTheDocument()
 
     fireEvent.click(within(nav()).getByRole('link', { name: 'Field lifecycles' }))
-    expect(await screen.findByText('Snapshot · Aug 2026')).toBeInTheDocument()
+    expect(await screen.findByText('Production to Aug 2026')).toBeInTheDocument()
     expect(calls).toBe(2)
   })
 
-  it('links the breadcrumb home and the source code to GitHub', () => {
+  it('links the logo and the breadcrumb home, and the source code button to GitHub', () => {
     renderAt('/lifecycles')
+    expect(screen.getByRole('link', { name: 'North Sea Field Atlas' })).toHaveAttribute('href', '/')
     expect(within(breadcrumb()).getByRole('link', { name: 'Atlas' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Source code' })).toHaveAttribute('href', SOURCE_CODE_URL)
+  })
+
+  it('draws the platform logo, not the old wave', () => {
+    renderAt('/')
+    const logo = screen.getByRole('link', { name: 'North Sea Field Atlas' }).querySelector('svg')!
+    expect(logo.getAttribute('viewBox')).toBe('0 0 20 20')
+    expect(logo.querySelectorAll('path')).toHaveLength(5)
+    expect(logo.querySelector('circle, rect')).toBeNull()
+  })
+
+  it('lists the screens under "Explore", with the Methods page last', () => {
+    renderAt('/')
+    expect(within(nav()).getByText('Explore')).toBeInTheDocument()
+    expect(within(nav()).getAllByRole('link').map((l) => l.textContent)).toEqual([
+      'Shelf map',
+      'Field deep dive',
+      'Field lifecycles',
+      'Methods',
+    ])
   })
 })
 
 describe('data credit', () => {
-  it('is the same text the API gives as attribution', () => {
+  it('is the same text the API gives as attribution, shown without the full stop at the end', () => {
     expect(DATA_CREDIT).toBe(snapshot.attribution)
+    expect(CREDIT_LINE).toBe(DATA_CREDIT.slice(0, -1))
   })
 
-  it.each(['/', '/fields/3420717', '/lifecycles', '/wells'])('is on the %s screen', (path) => {
+  it.each(['/', '/lifecycles', '/methods', '/wells'])('is the footer line on the %s screen', async (path) => {
     renderAt(path)
-    expect(screen.getAllByText(DATA_CREDIT, { exact: false }).length).toBeGreaterThan(0)
+    expect(await screen.findByRole('contentinfo')).toHaveTextContent(CREDIT_LINE)
   })
 
-  it('names the last month of production in the sidebar', async () => {
-    renderAt('/')
-    expect(await screen.findByText(/Production up to August 2026\./)).toBeInTheDocument()
-  })
-
-  it('is still on the page on a phone, where the sidebar is closed', () => {
-    setWidth(390)
-    renderAt('/')
-    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
-    expect(screen.getByRole('contentinfo')).toHaveTextContent(DATA_CREDIT)
+  it('is part of the field page note, which says where each number comes from', async () => {
+    renderAt('/fields/3420717')
+    await waitFor(() =>
+      expect(screen.getByRole('contentinfo')).toHaveTextContent('Production and investment from the Norwegian Offshore Directorate (Sodir), NLOD.'),
+    )
   })
 })
 
-describe('phone menu', () => {
-  it('opens the sidebar from the menu button and closes it after choosing a screen', async () => {
+describe('phone', () => {
+  it('stacks the sidebar above the content, with the screens still one tap away', () => {
     setWidth(390)
     renderAt('/')
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle Sidebar' }))
-    const link = await within(await screen.findByRole('dialog')).findByRole('link', { name: 'Field lifecycles' })
-    fireEvent.click(link)
-    expect(screen.getByTestId('path')).toHaveTextContent('/lifecycles')
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(within(nav()).getByRole('link', { name: 'Field lifecycles' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Toggle Sidebar' })).not.toBeInTheDocument()
   })
 })
 

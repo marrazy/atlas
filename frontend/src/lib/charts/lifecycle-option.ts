@@ -1,15 +1,10 @@
 import type { Lifecycle, LifecycleSet } from '@/lib/api/types'
 import { lifecycleLine } from '@/lib/lifecycles'
-import { CHART_COLOURS as C, CHART_FONTS as F } from './colours'
+import { AXIS_LABEL, CHART_COLOURS as C, CHART_FONTS as F, SPLIT_LINE, TOOLTIP_STYLE } from './colours'
 
 export const percent = (share: number) => `${Math.round(share * 100)}%`
 
 const years = (n: number) => `${n} ${n === 1 ? 'year' : 'years'}`
-
-/** The colour of a highlighted field: its main product colour, the same as on every other screen. */
-export function highlightColour(field: Lifecycle): string {
-  return field.main_product === 'oil' ? C.oil : C.gas
-}
 
 export function describeLifecycles(set: LifecycleSet, highlighted: Lifecycle | null): string {
   const intro = `Line chart of ${set.fields.length} fields, each as a share of its own best year, against years since first production. The median of all fields is a dashed line.`
@@ -25,39 +20,44 @@ export function lifecycleTooltip(set: LifecycleSet, highlighted: Lifecycle | nul
   return (params: { axisValue: number }[]) => {
     const age = Math.round(params[0]?.axisValue ?? NaN)
     if (Number.isNaN(age)) return ''
-    const row = (label: string, value: string) =>
-      `<div style="color:${C.mutedForeground}">${label} <span style="color:${C.foreground};font-family:${F.mono}">${value}</span></div>`
-    const lines = [`<div style="font-weight:600;margin-bottom:4px">${years(age)} after first production</div>`]
+    const row = (text: string) => `<div style="color:${C.text2}">${text}</div>`
+    const lines = [`<div style="font-weight:500;margin-bottom:2px;color:${C.text}">${years(age)} after first production</div>`]
     // past the end of the field's line there is nothing to say, and the calendar year could be in the future
     if (highlighted && age <= lastAge) {
       const share = own.get(age)
       const value = share === undefined ? 'no production' : `${percent(share)} of best year`
-      lines.push(row(`${highlighted.name}, ${highlighted.first_year + age}`, value))
+      lines.push(row(`${highlighted.name}, ${highlighted.first_year + age}: ${value}`))
     }
     const middle = median.get(age)
-    if (middle !== undefined) lines.push(row('Median of all fields', `${percent(middle)} of best year`))
+    if (middle !== undefined) lines.push(row(`Median of all fields: ${percent(middle)} of best year`))
     return lines.join('')
   }
 }
 
+/** The x axis ends on a round 5 years past the oldest field, 0 to 55 years with today's data. */
+export function lifecycleAxisMax(set: LifecycleSet): number {
+  const oldest = Math.max(0, ...set.fields.flatMap((f) => f.series.map(([age]) => age)))
+  return Math.ceil(oldest / 5) * 5
+}
+
 /**
- * `compact` is for phone screens. The names at the line ends need a wide empty margin on the right, so there
- * they are left out and the legend names the lines instead.
+ * Design v2: every field as a thin grey line, the selected field as an oil line on top with its name at the end,
+ * and the median as a dashed line. `compact` is for phone screens, where the end names are left out because they
+ * need a wide margin, and the legend names the lines instead.
  */
 export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null, compact = false) {
-  const axisText = { color: C.mutedForeground, fontFamily: F.mono, fontSize: 11 }
-  const oldest = Math.max(0, ...set.fields.flatMap((f) => f.series.map(([age]) => age)))
-  // a name at the end of a line, on a small dark box so it can be read over the other lines
-  const endLabel = (text: string) => ({
+  const max = lifecycleAxisMax(set)
+  // a name at the end of a line, with a white halo so it can be read over the grey lines
+  const endLabel = (text: string, size: number) => ({
     show: !compact,
     formatter: text,
-    color: C.foreground,
-    backgroundColor: C.background,
-    padding: [2, 6],
-    borderRadius: 4,
+    color: C.text,
+    textBorderColor: C.card,
+    textBorderWidth: 3,
     fontFamily: F.sans,
-    fontSize: 12,
-    fontWeight: 600 as const,
+    fontSize: size,
+    fontWeight: 500 as const,
+    distance: 6,
   })
   // A new highlight is merged into the chart, so each line gets a fixed id by its place. Merging by name
   // would give a field's new grey line the style of its old highlighted line.
@@ -72,8 +72,8 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
       type: 'line' as const,
       data: lifecycleLine(f.series),
       symbol: 'none',
-      lineStyle: { width: 1, color: C.other, opacity: 0.4 },
-      itemStyle: { color: C.other },
+      lineStyle: { width: 1, color: C.otherLine, opacity: 0.55 },
+      itemStyle: { color: C.otherLine },
       z: 1,
     }))
 
@@ -84,9 +84,9 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
     type: 'line' as const,
     data: lifecycleLine(set.median),
     symbol: 'none',
-    lineStyle: { width: 2, color: C.foreground, type: [6, 4] },
-    itemStyle: { color: C.foreground },
-    endLabel: endLabel('Median'),
+    lineStyle: { width: 2, color: C.text, type: [4, 3] },
+    itemStyle: { color: C.text },
+    endLabel: endLabel('Median', 11),
     z: 3,
   }
 
@@ -96,30 +96,30 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
     name: highlighted.name,
     type: 'line' as const,
     data: lifecycleLine(highlighted.series),
-    lineStyle: { width: 3, color: highlightColour(highlighted) },
-    itemStyle: { color: highlightColour(highlighted) },
-    endLabel: endLabel(highlighted.name),
+    lineStyle: { width: 2.5, color: C.oil },
+    itemStyle: { color: C.oil },
+    endLabel: endLabel(highlighted.name, 13),
     z: 4,
   }
 
   return {
     animationDuration: 400,
     aria: { enabled: true, label: { description: describeLifecycles(set, highlighted) } },
-    textStyle: { fontFamily: F.sans, color: C.foreground },
-    grid: { left: compact ? 40 : 52, right: compact ? 12 : 110, top: 20, bottom: 44 },
+    textStyle: { fontFamily: F.sans, color: C.text },
+    grid: { left: 40, right: compact ? 8 : 24, top: 12, bottom: 28 },
     xAxis: {
       type: 'value' as const,
       min: 0,
-      max: oldest,
-      minInterval: 1,
-      name: 'Years since first production',
-      nameLocation: 'middle' as const,
-      nameGap: 28,
-      nameTextStyle: { color: C.mutedForeground, fontFamily: F.sans, fontSize: 11 },
-      axisLine: { lineStyle: { color: C.border } },
+      max,
+      interval: 10,
+      name: 'years since first production',
+      nameLocation: 'end' as const,
+      nameGap: 0,
+      nameTextStyle: { ...AXIS_LABEL, align: 'right' as const, verticalAlign: 'top' as const, padding: [10, 0, 0, 0] },
+      axisLine: { show: false },
       axisTick: { show: false },
-      // after zooming, the axis can start or end part way through a year, so only whole years get a label
-      axisLabel: { ...axisText, formatter: (age: number) => (Number.isInteger(age) ? String(age) : '') },
+      // the axis name sits at the right end of the label row, so the last labels give it room
+      axisLabel: { ...AXIS_LABEL, formatter: (age: number) => (Number.isInteger(age) && age <= max - 15 ? String(age) : '') },
       splitLine: { show: false },
     },
     yAxis: {
@@ -127,24 +127,16 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
       min: 0,
       max: 1,
       interval: 0.25,
-      axisLabel: { ...axisText, formatter: percent },
-      splitLine: { lineStyle: { color: C.border, type: [3, 3] } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { ...AXIS_LABEL, formatter: percent },
+      splitLine: SPLIT_LINE,
     },
     tooltip: {
+      ...TOOLTIP_STYLE,
       trigger: 'axis' as const,
-      axisPointer: { type: 'line' as const, lineStyle: { color: C.mutedForeground } },
-      backgroundColor: C.background,
-      borderColor: C.border,
-      textStyle: { color: C.foreground, fontFamily: F.sans, fontSize: 12 },
+      axisPointer: { type: 'line' as const, lineStyle: { color: C.muted, width: 1 } },
       formatter: lifecycleTooltip(set, highlighted),
-    },
-    // The card's "Zoom into an area" button turns on this tool. ECharts only creates the tool when the
-    // toolbox is shown, so it is shown outside the chart, where its own canvas icons cannot be seen.
-    toolbox: {
-      show: true,
-      left: -1000,
-      top: -1000,
-      feature: { dataZoom: { xAxisIndex: 0, yAxisIndex: false, filterMode: 'none' } },
     },
     series: [...others, median, ...(highlight ? [highlight] : [])],
   }

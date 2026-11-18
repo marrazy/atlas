@@ -1,5 +1,6 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { fakeChart } from '@/test/echarts-stub'
 import type { FieldDetail, ProductionMonth } from '@/lib/api/types'
 import { fields, snapshot, volve, volveDeclineHyperbolic, volveInvestments, volveProduction } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
@@ -44,7 +45,11 @@ function card(label: string) {
   return [...term.parentElement!.querySelectorAll('dt, dd')].map((el) => el.textContent)
 }
 
-const cardLabels = () => screen.queryAllByRole('term').map((dt) => dt.textContent)
+// the stat cards are the first list of terms on the page; the decline panel's fitted values are another
+const cardLabels = () => {
+  const grid = screen.queryAllByRole('term')[0]?.closest('dl')
+  return grid ? [...grid.querySelectorAll(':scope > div > dt')].map((dt) => dt.textContent) : []
+}
 
 // the page loads lazily, so load its code once here and the first test does not spend its wait time on that
 beforeAll(() => import('@/pages/FieldPage'))
@@ -55,37 +60,46 @@ beforeEach(() => {
 })
 
 describe('Volve', () => {
-  it('shows the name with status, product and operator badges, and a line built from Sodir data', async () => {
+  it('shows the name and one meta row: status, main product, operator and coordinates, as dots and plain text', async () => {
     renderApp('/fields/3420717')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Volve' })).toBeInTheDocument()
-    const main = within(screen.getByRole('main'))
-    expect(main.getByText('Shut down')).toBeInTheDocument()
-    expect(main.getByText('Oil')).toBeInTheDocument()
-    expect(main.getByText('Equinor')).toBeInTheDocument()
-    expect(main.getByText('Oil field in the North Sea, discovered in 1993. Operated by Equinor Energy AS.')).toBeInTheDocument()
+    const title = await screen.findByRole('heading', { level: 1, name: 'Volve' })
+    const meta = within(title.nextElementSibling as HTMLElement)
+    expect(title.nextElementSibling).toHaveTextContent('Shut downOilEquinor58°26′N 001°53′E')
+    // shut down is a ring in the muted colour, oil a filled oil dot
+    expect(meta.getByText('Shut down').querySelector('.border-muted-foreground')).not.toBeNull()
+    expect(meta.getByText('Oil').querySelector('.bg-oil')).not.toBeNull()
+    expect(meta.getByText('58°26′N 001°53′E')).toHaveClass('font-mono')
     expect(document.title).toBe('Volve · North Sea Field Atlas')
   })
 
-  it('shows the five stat cards with the values from the design', async () => {
+  it('shows the four stat cards of design v2, with the values from the API and Equinor', async () => {
     renderApp('/fields/3420717')
-    await screen.findByText('Sep 2016')
-    expect(card('First production')).toEqual(['First production', 'Feb 2008', 'First month with output'])
-    expect(card('Last production')).toEqual(['Last production', 'Sep 2016', 'Field shut down'])
-    expect(card('Total oil')).toEqual(['Total oil', '63.3 MMbbl', 'Million barrels, from Sodir'])
+    await screen.findByText('8.6 years')
+    expect(card('Producing life')).toEqual(['Producing life', '8.6 years', 'Feb 2008 to Sep 2016'])
+    expect(card('Total oil')).toEqual(['Total oil', '63.3 MMbbl', 'Million barrels, gross'])
     expect(card('Peak rate')).toEqual(['Peak rate', '56,129', 'Barrels a day, Dec 2008'])
-    expect(card('Recovery rate')).toEqual(['Recovery rate', '54%', 'Oil in place recovered, per Equinor'])
+    expect(card('Recovery rate')).toEqual(['Recovery rate', '54%', 'Of oil in place, as reported by Equinor'])
+    expect(cardLabels()).toEqual(['Producing life', 'Total oil', 'Peak rate', 'Recovery rate'])
+    expect(screen.getByText('Total oil', { selector: 'dt' }).parentElement).toHaveClass('bg-tint-oil')
   })
 
   it('shows the decline panel under the production charts', async () => {
     renderApp('/fields/3420717')
-    expect(await screen.findByText('b hit its lower limit, so this decline is really exponential.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Decline curve forecast' })).toBeInTheDocument()
+    expect(await screen.findByText('b hit its lower limit, so this decline is really exponential')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Decline curve' })).toBeInTheDocument()
   })
 
-  it('shows the investment chart and the sources', async () => {
+  it('shows the investment chart and the sources, with no Equinor dataset card', async () => {
     renderApp('/fields/3420717')
-    expect(await screen.findByText('Million Norwegian kroner, not adjusted for inflation. 1,937 million in total.')).toBeInTheDocument()
+    expect(await screen.findByText('Million NOK, not adjusted for inflation')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Volve on Sodir FactPages (opens in a new tab)' })).toBeInTheDocument()
+    expect(screen.queryByText(/Equinor (Volve )?dataset/)).not.toBeInTheDocument()
+  })
+
+  it('marks the stretch where Volve output rises again on the production chart', async () => {
+    renderApp('/fields/3420717')
+    await screen.findByRole('img', { name: /^Two linked charts for Volve/ })
+    await waitFor(() => expect(JSON.stringify(fakeChart.options)).toContain('Output rises again'))
   })
 
   it('shows the production charts from the monthly data', async () => {
@@ -101,15 +115,16 @@ describe('other fields', () => {
     renderApp('/fields/42002473')
     expect(await screen.findByRole('heading', { level: 1, name: 'Berling' })).toBeInTheDocument()
     await screen.findAllByText('No production reported')
-    expect(card('First production')).toEqual(['First production', 'None', 'No production reported'])
-    expect(card('Last production')).toEqual(['Last production', 'None', 'No production reported'])
+    expect(card('Producing life')).toEqual(['Producing life', 'None', 'No production reported'])
     expect(card('Total oil')).toEqual(['Total oil', '0.0 MMbbl', 'No oil reported'])
     expect(card('Peak rate')).toEqual(['Peak rate', 'None', 'No oil reported'])
+    // the recovery rate is from Equinor and only for Volve, so other fields show the discovery year from the API
     expect(cardLabels()).not.toContain('Recovery rate')
+    expect(card('Discovered')).toEqual(['Discovered', '2018', 'Discovery year, from Sodir'])
     expect(within(screen.getByRole('main')).getByText('Gas')).toBeInTheDocument()
-    expect(screen.getByText('No production reported for this field.')).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2, name: 'Decline curve forecast' })).not.toBeInTheDocument()
-    expect(await screen.findByText('No investment reported for this field.')).toBeInTheDocument()
+    expect(screen.getByText('No production reported for this field')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Decline curve' })).not.toBeInTheDocument()
+    expect(await screen.findByText('No investment reported for this field')).toBeInTheDocument()
   })
 
   it('opens another field from the picker', async () => {
@@ -127,8 +142,8 @@ describe('loading and errors', () => {
     mockApi({ ...API, '/api/fields/3420717': () => new Promise<Response>(() => {}) })
     renderApp('/fields/3420717')
     expect(await screen.findByRole('heading', { level: 1, name: 'Loading field' })).toBeInTheDocument()
-    expect(cardLabels()).toEqual(['First production', 'Last production', 'Total oil', 'Peak rate'])
-    expect(screen.getByText('First production').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
+    expect(cardLabels()).toEqual(['Producing life', 'Total oil', 'Peak rate', 'Discovered'])
+    expect(screen.getByText('Producing life').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
   })
 
   it('says the field was not found when the API answers 404', async () => {
@@ -147,8 +162,7 @@ describe('loading and errors', () => {
   it('falls back to the years from the field record when the monthly data fails', async () => {
     mockApi({ ...API, '/api/fields/3420717/production': json({ detail: 'oops' }, 500) })
     renderApp('/fields/3420717')
-    await screen.findAllByText('Year only, the monthly data did not load')
-    expect(card('First production')).toEqual(['First production', '2008', 'Year only, the monthly data did not load'])
-    expect(card('Last production')).toEqual(['Last production', '2016', 'Year only, the monthly data did not load'])
+    await screen.findByText('2008 to 2016, the monthly data did not load')
+    expect(card('Producing life')).toEqual(['Producing life', '9 years', '2008 to 2016, the monthly data did not load'])
   })
 })

@@ -7,11 +7,23 @@ export const FORECAST_MONTHS = 40
 /** Below this R², the window does not follow a clear decline, so the forecast is flagged as rough. */
 export const WEAK_FIT_R2 = 0.5
 
+/** The three models, with a general note for any field. Design v2 writes notes without a full stop at the end. */
 export const DECLINE_MODELS: { value: DeclineModel; label: string; note: string }[] = [
-  { value: 'exponential', label: 'Exponential', note: 'Constant decline rate. The most cautious forecast.' },
-  { value: 'hyperbolic', label: 'Hyperbolic', note: 'Decline slows over time, between the other two models.' },
-  { value: 'harmonic', label: 'Harmonic', note: 'Decline slows the most. Gives the most hopeful forecast.' },
+  { value: 'exponential', label: 'Exponential', note: 'Constant decline rate. The most cautious forecast' },
+  { value: 'hyperbolic', label: 'Hyperbolic', note: 'Decline slows over time, between the other two models' },
+  { value: 'harmonic', label: 'Harmonic', note: 'Decline slows the most, so it forecasts the most oil' },
 ]
+
+/**
+ * Notes that only fit Volve, from design v2. They were checked against the fits the API gives for Volve's
+ * default window, Apr 2015 to Aug 2016: exponential R² 0.931, the same as hyperbolic, whose b sits at its lower
+ * limit of 0.01, and harmonic R² 0.892.
+ */
+export const VOLVE_MODEL_NOTES: Record<DeclineModel, string> = {
+  exponential: 'Constant decline rate. The most cautious forecast, and the best fit for Volve',
+  hyperbolic: 'Decline slows over time. Here the fit pushed b to its floor, so it matches exponential',
+  harmonic: 'Decline slows the most, so it forecasts the most oil. It fits Volve less well',
+}
 
 export type FitWindow = { start: YearMonth; end: YearMonth }
 
@@ -47,21 +59,23 @@ export function fitWindow(months: ProductionMonth[]): FitWindow | null {
   return { start, end }
 }
 
-/** b in plain words. When the fit pushed b to the edge of its range, the number is not shown as if it were precise. */
-export function describeB(result: Pick<DeclineResult, 'model' | 'b' | 'b_at_limit'>): string {
-  if (result.model === 'exponential') return 'b = 0 (exponential)'
-  if (result.model === 'harmonic') return 'b = 1 (harmonic)'
-  if (result.b_at_limit) {
-    return result.b < 0.5
-      ? 'b hit its lower limit, so this decline is really exponential.'
-      : 'b hit its upper limit, so this decline is really harmonic.'
-  }
-  return `b = ${formatNumber(result.b, 2)} (hyperbolic)`
+/** b as a number for the fitted values: 0 and 1 for the fixed models, two decimals for hyperbolic. */
+export function formatB(result: Pick<DeclineResult, 'model' | 'b'>): string {
+  if (result.model === 'exponential') return '0'
+  if (result.model === 'harmonic') return '1'
+  return formatNumber(result.b, 2)
 }
 
-/** "about 15 months" or "about 4.9 years". */
+/** When a hyperbolic fit pushed b to the edge of its range, say what that means, so b is not read as precise. */
+export function describeBLimit(result: Pick<DeclineResult, 'model' | 'b' | 'b_at_limit'>): string | null {
+  if (result.model !== 'hyperbolic' || !result.b_at_limit) return null
+  return result.b < 0.5
+    ? 'b hit its lower limit, so this decline is really exponential'
+    : 'b hit its upper limit, so this decline is really harmonic'
+}
+
+/** "Reaches 300 Sm³/day after about 15 more months", or that it does not within the 50 years the API looks ahead. */
 export function describeTimeToLimit(months: number | null): string {
-  if (months === null) return 'Does not reach the economic limit within 50 years with this model.'
-  const span = months < 24 ? `${months} more months` : `${formatNumber(months / 12, 1)} more years`
-  return `Reaches the economic limit after about ${span} with this model.`
+  if (months === null) return 'Does not reach the limit within 50 years'
+  return `Reaches ${ECONOMIC_LIMIT} Sm³/day after about ${months} more ${months === 1 ? 'month' : 'months'}`
 }

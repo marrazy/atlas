@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 import type { ProductionMonth } from '@/lib/api/types'
 import { fakeChart } from '@/test/echarts-stub'
 import { volveProduction } from '@/test/fixtures'
@@ -13,64 +13,37 @@ const VOLVE: ProductionMonth[] = [
 const renderReady = (months: ProductionMonth[] = VOLVE, name = 'Volve') =>
   render(<ProductionCard fieldName={name} production={{ status: 'ready', data: months }} />)
 
-beforeEach(() => {
-  fakeChart.dispatchAction.mockClear()
-  fakeChart.getDataURL.mockClear()
-})
-
 describe('ProductionCard', () => {
   it('shows the title, the legend with words, and the chart with its spoken description', () => {
     renderReady()
     expect(screen.getByRole('heading', { level: 2, name: 'Production' })).toBeInTheDocument()
-    expect(screen.getByText('Oil rate')).toBeInTheDocument()
+    expect(screen.getByText('Oil rate, Sm³/day')).toBeInTheDocument()
     expect(screen.getByText('Gas oil ratio')).toBeInTheDocument()
-    expect(screen.getByRole('img')).toHaveAccessibleName(
-      /^Two linked charts for Volve, February 2008 to September 2016\./,
-    )
+    expect(screen.getByRole('img')).toHaveAccessibleName(/^Two linked charts for Volve, February 2008 to September 2016\./)
   })
 
-  it('turns area zoom on and off, and says whether it is on', () => {
+  it('has no toolbox buttons, as design v2 asks; the zoom bar under the chart is the only zoom', () => {
     renderReady()
-    const zoom = screen.getByRole('button', { name: 'Zoom into an area' })
-    expect(zoom).toHaveAttribute('aria-pressed', 'false')
-
-    fireEvent.click(zoom)
-    expect(zoom).toHaveAttribute('aria-pressed', 'true')
-    expect(fakeChart.dispatchAction).toHaveBeenLastCalledWith({
-      type: 'takeGlobalCursor',
-      key: 'dataZoomSelect',
-      dataZoomSelectActive: true,
-    })
-
-    fireEvent.click(zoom)
-    expect(zoom).toHaveAttribute('aria-pressed', 'false')
-  })
-
-  it('resets the zoom on both charts and turns area zoom off', () => {
-    renderReady()
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom into an area' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Reset view' }))
-    expect(fakeChart.dispatchAction).toHaveBeenCalledWith({ type: 'dataZoom', start: 0, end: 100 })
-    expect(screen.getByRole('button', { name: 'Zoom into an area' })).toHaveAttribute('aria-pressed', 'false')
-  })
-
-  it('saves the chart as a PNG named after the field', () => {
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    renderReady(VOLVE, 'Oseberg Øst')
-    fireEvent.click(screen.getByRole('button', { name: 'Save as image' }))
-
-    expect(fakeChart.getDataURL).toHaveBeenCalledWith(expect.objectContaining({ type: 'png', pixelRatio: 2 }))
-    const link = click.mock.contexts[0] as HTMLAnchorElement
-    expect(link.download).toBe('oseberg-ost-production.png')
-    expect(link.href).toBe('data:image/png;base64,AAAA')
-    click.mockRestore()
-  })
-
-  it('says so when the field has no production, with no chart and no buttons', () => {
-    renderReady([], 'Berling')
-    expect(screen.getByText('No production reported for this field.')).toBeInTheDocument()
-    expect(screen.queryByRole('img')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    const option = fakeChart.lastOption as { dataZoom: { type: string }[] }
+    expect(option.dataZoom.map((z) => z.type)).toEqual(['slider'])
+  })
+
+  it('draws the note band when one is given (Volve: output rises again)', () => {
+    render(
+      <ProductionCard
+        fieldName="Volve"
+        production={{ status: 'ready', data: VOLVE }}
+        note={{ start: '2008-03', end: '2008-05', label: 'Output rises again' }}
+      />,
+    )
+    expect(JSON.stringify(fakeChart.lastOption)).toContain('Output rises again')
+  })
+
+  it('says so when the field has no production, with no chart', () => {
+    renderReady([], 'Berling')
+    expect(screen.getByText('No production reported for this field')).toBeInTheDocument()
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 
   it('shows the error when the monthly data could not load', () => {
@@ -78,9 +51,8 @@ describe('ProductionCard', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('The server answered with error 500.')
   })
 
-  it('shows a placeholder, and no buttons, while loading', () => {
+  it('shows a placeholder while loading', () => {
     render(<ProductionCard fieldName="Volve" production={{ status: 'loading' }} />)
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })

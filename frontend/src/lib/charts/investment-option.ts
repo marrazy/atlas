@@ -1,6 +1,6 @@
 import type { InvestmentYear } from '@/lib/api/types'
-import { formatCompact, formatNumber } from '@/lib/format'
-import { CHART_COLOURS as C, CHART_FONTS as F } from './colours'
+import { formatNumber } from '@/lib/format'
+import { AXIS_LABEL, CHART_COLOURS as C, CHART_FONTS as F, SPLIT_LINE, TOOLTIP_STYLE } from './colours'
 
 /** How many of the biggest years get their value written on top of the bar, like the design. */
 const LABELLED_BARS = 2
@@ -37,67 +37,68 @@ export function investmentTooltip(params: { name: string; value: number | null }
   const bar = params[0]
   if (!bar) return ''
   const text = bar.value === null || bar.value === undefined ? 'no investment reported' : `${formatNumber(bar.value)} million NOK`
-  return `<div style="font-weight:600">${bar.name}</div><div style="color:${C.mutedForeground}">${text}</div>`
+  return `<div style="font-weight:500;color:${C.text}">${bar.name}</div><div style="color:${C.text2}">${text}</div>`
 }
 
+/** Years written short, like ’05, as in design v2. */
+export const shortYear = (year: string | number) => `’${String(year).slice(-2)}`
+
+/** Bars in the neutral grey, the year with the most investment in the text colour, values on the two highest. */
 export function investmentOption(fieldName: string, s: InvestmentSeries) {
-  const biggest = new Set(
-    s.values
-      .map((value, i) => ({ value: value ?? -1, i }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, LABELLED_BARS)
-      .filter((bar) => bar.value > 0)
-      .map((bar) => bar.i),
-  )
-  const axisText = { color: C.mutedForeground, fontFamily: F.mono, fontSize: 11 }
+  const ranked = s.values
+    .map((value, i) => ({ value: value ?? -1, i }))
+    .sort((a, b) => b.value - a.value)
+    .filter((bar) => bar.value > 0)
+  const highest = ranked[0]?.i
+  const labelled = new Set(ranked.slice(0, LABELLED_BARS).map((bar) => bar.i))
 
   return {
     animationDuration: 400,
     aria: { enabled: true, label: { description: describeInvestment(fieldName, s) } },
-    textStyle: { fontFamily: F.sans, color: C.foreground },
-    grid: { left: 56, right: 16, top: 30, bottom: 28 },
+    textStyle: { fontFamily: F.sans, color: C.text },
+    grid: { left: 48, right: 8, top: 24, bottom: 24 },
     xAxis: {
       type: 'category' as const,
       data: s.years.map(String),
-      axisLine: { lineStyle: { color: C.border } },
+      axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { ...axisText, hideOverlap: true },
+      axisLabel: { ...AXIS_LABEL, hideOverlap: true, formatter: shortYear },
     },
     yAxis: {
       type: 'value' as const,
-      name: 'Million NOK',
-      // room above the tallest bar for its value label, so it does not touch the axis title
+      // room above the tallest bar for its value label
       boundaryGap: [0, '15%'],
-      nameTextStyle: { color: C.mutedForeground, fontFamily: F.sans, fontSize: 11, align: 'left' as const },
-      nameGap: 12,
-      axisLabel: { ...axisText, formatter: formatCompact },
-      splitLine: { lineStyle: { color: C.border, type: [3, 3] } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      // full numbers like 1,200, as in the design
+      axisLabel: { ...AXIS_LABEL, formatter: (value: number) => formatNumber(value) },
+      splitLine: SPLIT_LINE,
     },
     tooltip: {
+      ...TOOLTIP_STYLE,
       trigger: 'axis' as const,
-      axisPointer: { type: 'shadow' as const, shadowStyle: { color: 'rgba(235, 229, 222, 0.05)' } },
-      backgroundColor: C.background,
-      borderColor: C.border,
-      textStyle: { color: C.foreground, fontFamily: F.sans, fontSize: 12 },
+      axisPointer: { type: 'shadow' as const, shadowStyle: { color: 'rgba(23, 23, 23, 0.04)' } },
       formatter: investmentTooltip,
     },
     series: [
       {
         name: 'Investment',
         type: 'bar' as const,
-        barMaxWidth: 36,
-        itemStyle: { color: C.mutedForeground, borderRadius: [4, 4, 0, 0] },
+        barMaxWidth: 56,
         data: s.values.map((value, i) => ({
           value,
+          itemStyle: { color: i === highest ? C.text : C.neutralBar, borderRadius: [4, 4, 0, 0] },
           label: {
-            show: biggest.has(i),
+            show: labelled.has(i),
             position: 'top' as const,
-            color: C.foreground,
-            fontFamily: F.sans,
+            distance: 4,
+            color: C.text,
+            fontFamily: F.mono,
             fontSize: 11,
-            formatter: () => (value === null ? '' : formatNumber(value)),
+            formatter: ({ value: v }: { value: number }) => formatNumber(v),
           },
         })),
+        emphasis: { disabled: true },
       },
     ],
   }

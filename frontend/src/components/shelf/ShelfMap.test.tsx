@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { NORTH_SEA_VIEW, OUTLINE_ZOOM, fieldHoverText, fieldPoints } from '@/lib/map/shelf-map'
+import { NORTH_SEA_VIEW, OUTLINE_ZOOM, fieldTooltipLines, fieldPoints } from '@/lib/map/shelf-map'
 import { fields, volveOutline } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
-import { AttributionControl, Map, Popup, setWorkerUrl } from '@/test/maplibre-stub'
+import { Map, Popup, setWorkerUrl } from '@/test/maplibre-stub'
 import ShelfMap from './ShelfMap'
 
 function renderMap(year = 2012) {
@@ -26,10 +26,22 @@ describe('ShelfMap', () => {
     expect(map.touchZoomRotate.disableRotation).toHaveBeenCalled()
   })
 
-  it('credits Sodir and Natural Earth on the map', () => {
+  it('has no attribution box or compass on the map, as design v2 asks; the page credits the data', () => {
     const { map } = renderMap()
-    const credit = map.controls.find((c) => c instanceof AttributionControl) as AttributionControl
-    expect(credit.options.customAttribution).toBe('MapLibre · Fields © Sodir (NLOD) · Coastline: Natural Earth')
+    expect(map.controls).toEqual([])
+    expect(screen.queryByRole('button', { name: /compass/i })).not.toBeInTheDocument()
+  })
+
+  it('names the view and shows a scale bar, as small white labels', () => {
+    renderMap()
+    expect(screen.getAllByText('Whole shelf').length).toBeGreaterThan(0)
+    expect(screen.getByText(/^\d+ km$/)).toBeInTheDocument()
+  })
+
+  it('writes place names in sentence case, with no uppercase or wide letter spacing', () => {
+    renderMap()
+    const label = screen.getByText('North Sea')
+    expect(label.className).not.toMatch(/uppercase|tracking/)
   })
 
   it('describes the map to screen readers, for the chosen year', () => {
@@ -54,7 +66,14 @@ describe('ShelfMap', () => {
   it('shows the field text when the pointer is over a circle, and hides it when it leaves', () => {
     const { map } = renderMap()
     map.fire('mousemove', 'fields-stopped', { features: [{ properties: { field_id: 3420717 } }], lngLat: { lng: 1.9, lat: 58.4 } })
-    expect(Popup.last!.text).toBe('Volve · oil · first production 2008, shut down after 2016, 11.4 million Sm³ o.e. produced')
+    expect(Popup.last!.text.split('\n')).toEqual([
+      'Volve',
+      '58°26′N 001°53′E',
+      'Oil',
+      'First production 2008',
+      'Shut down after 2016',
+      '11.4 million Sm³ o.e. produced',
+    ])
     expect(Popup.last!.added).toBe(true)
     map.fire('mouseleave', 'fields-stopped')
     expect(Popup.last!.added).toBe(false)
@@ -66,19 +85,19 @@ describe('ShelfMap', () => {
     expect(onSelectField).toHaveBeenCalledWith(46437)
   })
 
-  it('has real buttons to zoom and to show the whole shelf again', () => {
+  it('has two real buttons, one to zoom in to the North Sea and one to go back to the whole shelf', () => {
     const { map } = renderMap()
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Show the whole shelf' }))
-    expect(map.zoomIn).toHaveBeenCalled()
-    expect(map.zoomOut).toHaveBeenCalled()
-    expect(map.fitBounds).toHaveBeenCalledWith([1.886, 58.4385, 6.3668, 65.1792], expect.objectContaining({ padding: 32 }))
+    expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Zoom in to the northern North Sea',
+      'Zoom out to the whole shelf',
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out to the whole shelf' }))
+    expect(map.fitBounds).toHaveBeenCalledWith([1.886, 58.4385, 6.3668, 65.1792], expect.objectContaining({ padding: 24 }))
   })
 
   it('keeps the view the visitor chose if they used a button before the map finished starting', () => {
     const { map } = renderMap()
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in to the northern North Sea' }))
     map.fire('load', undefined)
     expect(map.fitBounds).not.toHaveBeenCalled()
   })
@@ -87,7 +106,7 @@ describe('ShelfMap', () => {
     const { map } = renderMap()
     map.fire('load', undefined)
     expect(map.resize).toHaveBeenCalled()
-    expect(map.fitBounds).toHaveBeenCalledWith([1.886, 58.4385, 6.3668, 65.1792], { padding: 32, animate: false })
+    expect(map.fitBounds).toHaveBeenCalledWith([1.886, 58.4385, 6.3668, 65.1792], { padding: 24, animate: false })
   })
 
   it('removes the map when the page closes', () => {
@@ -128,8 +147,8 @@ describe('ShelfMap field outlines', () => {
     const { map } = loadedMap(5)
     await waitFor(() => expect(map.addLayer).toHaveBeenCalledTimes(2))
     expect(map.addLayer.mock.calls.map(([layer, before]) => [layer.id, before])).toEqual([
-      ['outlines-fill', 'fields-not-yet'],
-      ['outlines-line', 'fields-not-yet'],
+      ['outlines-fill', 'fields-halo'],
+      ['outlines-line', 'fields-halo'],
     ])
   })
 
@@ -157,7 +176,7 @@ describe('ShelfMap field outlines', () => {
     const { map, onSelectField } = loadedMap(5)
     await waitFor(() => expect(map.addLayer).toHaveBeenCalledTimes(2))
     map.fire('mousemove', 'outlines-fill', { features: [{ properties: { field_id: 3420717 } }], lngLat: { lng: 1.9, lat: 58.4 } })
-    expect(Popup.last!.text).toBe(fieldHoverText(fields[0]))
+    expect(Popup.last!.text.split('\n')).toEqual(fieldTooltipLines(fields[0]))
     map.fire('click', 'outlines-fill', { features: [{ properties: { field_id: 3420717 } }] })
     expect(onSelectField).toHaveBeenCalledWith(3420717)
   })
@@ -180,7 +199,7 @@ describe('ShelfMap field outlines', () => {
   it('has a button that goes to the northern North Sea, far enough in for the outlines', async () => {
     const { map, fetchMock } = loadedMap(3)
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in to the northern North Sea' }))
-    expect(map.cameraForBounds).toHaveBeenCalledWith(NORTH_SEA_VIEW, { padding: 32 })
+    expect(map.cameraForBounds).toHaveBeenCalledWith(NORTH_SEA_VIEW, { padding: 24 })
     // the stand-in camera is zoom 4.2, which is too far out, so it goes to the outline zoom instead
     expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: OUTLINE_ZOOM.end, center: { lng: 3, lat: 59.9 } }))
     // and starts the download at once, without waiting for the zoom to finish

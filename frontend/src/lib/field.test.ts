@@ -1,54 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { volve, volveProduction } from '@/test/fixtures'
-import {
-  areaLabel,
-  describeField,
-  fieldSlug,
-  foldForSearch,
-  hydrocarbonLabel,
-  matchField,
-  productLabel,
-  productionSpan,
-} from './field'
+import { volveProduction } from '@/test/fixtures'
+import { foldForSearch, matchField, producingLifeYears, productLabel, productionSpan } from './field'
 
 describe('labels', () => {
-  it.each([
-    ['OIL', 'Oil'],
-    ['GAS', 'Gas'],
-    ['OIL/GAS', 'Oil and gas'],
-    ['GAS/CONDENSATE', 'Gas and condensate'],
-    ['OIL/CONDENSATE', 'Oil and condensate'],
-  ])('writes the hydrocarbon type %s as "%s"', (hcType, expected) => {
-    expect(hydrocarbonLabel(hcType)).toBe(expected)
-  })
-
-  it.each([
-    ['North sea', 'North Sea'],
-    ['Norwegian sea', 'Norwegian Sea'],
-    ['Barents sea', 'Barents Sea'],
-  ])('writes the area %s as "%s"', (area, expected) => {
-    expect(areaLabel(area)).toBe(expected)
-  })
-
   it('writes the main product with a capital letter', () => {
     expect(productLabel('oil')).toBe('Oil')
     expect(productLabel('gas')).toBe('Gas')
   })
 })
 
-describe('describeField', () => {
-  it('describes Volve from its Sodir data', () => {
-    expect(describeField(volve)).toBe('Oil field in the North Sea, discovered in 1993. Operated by Equinor Energy AS.')
+describe('producingLifeYears', () => {
+  it('counts the months from the first to the last month with production, in years (Volve: 103 months, 8.6 years)', () => {
+    expect(producingLifeYears({ first: '2008-02', last: '2016-09' })).toBeCloseTo(103 / 12)
+    expect(producingLifeYears({ first: '2008-02', last: '2016-09' }).toFixed(1)).toBe('8.6')
   })
 
-  it('leaves out the operator when Sodir has none', () => {
-    expect(describeField({ ...volve, hc_type: 'GAS/CONDENSATE', main_area: 'Norwegian sea', operator_full: null })).toBe(
-      'Gas and condensate field in the Norwegian Sea, discovered in 1993.',
-    )
-  })
-
-  it('leaves out the discovery year when it is missing', () => {
-    expect(describeField({ ...volve, discovery_year: null, operator_full: null })).toBe('Oil field in the North Sea.')
+  it('is zero for a field that produced for one month', () => {
+    expect(producingLifeYears({ first: '2020-05', last: '2020-05' })).toBe(0)
   })
 })
 
@@ -59,18 +27,6 @@ describe('productionSpan', () => {
 
   it('gives null for a field that never produced', () => {
     expect(productionSpan([])).toBeNull()
-  })
-})
-
-describe('fieldSlug', () => {
-  it.each([
-    ['Volve', 'volve'],
-    ['Oseberg Øst', 'oseberg-ost'],
-    ['Ærfugl Nord', 'aerfugl-nord'],
-    ['Fram H-Nord', 'fram-h-nord'],
-    ['Tommeliten A', 'tommeliten-a'],
-  ])('makes a file name part from %s: "%s"', (name, slug) => {
-    expect(fieldSlug(name)).toBe(slug)
   })
 })
 

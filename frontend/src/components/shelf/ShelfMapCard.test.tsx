@@ -14,48 +14,40 @@ const renderCard = (state: ApiState<FieldSummary[]>, year: number | null = 2025)
   )
 
 describe('ShelfMapCard', () => {
-  it('describes only what the map shows, from the data', () => {
+  it('has a title only, with no description line under it', () => {
     renderCard({ status: 'ready', data: fields })
-    expect(screen.getByRole('heading', { level: 2, name: 'Fields on the shelf' })).toBeInTheDocument()
-    expect(screen.getByText('Each field is a circle at the centre of its outline. Drag the year or press play to see which fields were producing. Zoom in to see the real field outlines. Click a field to open its deep dive.',)).toBeInTheDocument()
+    const heading = screen.getByRole('heading', { level: 2, name: 'Fields on the shelf' })
+    expect(heading.parentElement!.querySelectorAll('p')).toHaveLength(0)
   })
 
-  it('explains colour and shape in words, so colour is not the only clue', () => {
+  it('explains colour and shape in words in one legend row, with the circle size note at the right', () => {
     renderCard({ status: 'ready', data: fields })
-    for (const text of [
-      'Mostly oil',
-      'Mostly gas',
-      'Filled: produced that year',
-      'Ring: had stopped',
-      'Faint ring: not started yet',
-      'Circle size shows total production to date.',
-    ]) {
+    for (const text of ['Mostly oil', 'Mostly gas', 'Shut down', 'Circle size shows total production']) {
       expect(screen.getByText(text)).toBeInTheDocument()
     }
   })
 
   it('loads the map once the fields are ready', async () => {
     renderCard({ status: 'ready', data: fields })
-    expect(await screen.findByRole('button', { name: 'Zoom in' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Zoom in to the northern North Sea' })).toBeInTheDocument()
   })
 
-  it('shows the year slider with the count for the year, and says why Sindre has no circle', () => {
+  it('shows the year slider with the count of fields producing that year, from producing_years', () => {
     renderCard({ status: 'ready', data: fields })
     expect(screen.getByRole('slider', { name: 'Year' })).toHaveValue('2025')
-    expect(
-      screen.getByText('1 field had production in 2025. 1 of them has no location in the data, so it is not on the map.'),
-    ).toBeInTheDocument()
+    // in this test data only Sindre produced in 2025
+    expect(screen.getByText(/1 field producing$/)).toBeInTheDocument()
   })
 
   it('waits for the year range before showing the map or the slider', () => {
     renderCard({ status: 'ready', data: fields }, null)
     expect(screen.queryByRole('slider')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zoom in to the northern North Sea' })).not.toBeInTheDocument()
   })
 
   it('shows the error when the fields could not load', () => {
     renderCard({ status: 'error', message: 'Could not reach the server.' })
     expect(screen.getByRole('alert')).toHaveTextContent('Could not reach the server.')
-    expect(screen.queryByRole('button', { name: 'Zoom in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Zoom in to the northern North Sea' })).not.toBeInTheDocument()
   })
 })

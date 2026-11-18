@@ -6,10 +6,10 @@ import type { ApiState } from '@/lib/api/use-api'
 import { fields } from '@/test/fixtures'
 import { LargestFieldsCard } from './LargestFieldsCard'
 
-function show(state: ApiState<FieldSummary[]>, until: string | null = 'August 2026') {
+function show(state: ApiState<FieldSummary[]>) {
   return render(
     <MemoryRouter>
-      <LargestFieldsCard fields={state} until={until} />
+      <LargestFieldsCard fields={state} />
     </MemoryRouter>,
   )
 }
@@ -29,7 +29,8 @@ describe('LargestFieldsCard', () => {
     ])
     // Berling has never produced, so it is not in the table
     expect(rows).toHaveLength(3)
-    expect(cells(rows[1])).toEqual(['Volve', 'Oil', '2008', 'Equinor', '11'])
+    expect(cells(rows[1])).toEqual(['Volve58°26′N 001°53′E', 'Oil', '2008', 'Equinor', '11'])
+    // Sindre has no location in the data, so it has no coordinates
     expect(cells(rows[2])).toEqual(['Sindre', 'Gas', '2017', 'Equinor', '0'])
   })
 
@@ -38,14 +39,17 @@ describe('LargestFieldsCard', () => {
     expect(screen.getByRole('link', { name: 'Volve' })).toHaveAttribute('href', '/fields/3420717')
   })
 
-  it('says how far the totals go, from the snapshot month', () => {
+  it('has a title only, no description line, and shows the main product as a dot and a word, not a pill', () => {
     show({ status: 'ready', data: fields })
-    expect(screen.getByText('By total saleable production, up to August 2026.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Largest fields' }).parentElement!.querySelectorAll('p')).toHaveLength(0)
+    const product = within(screen.getAllByRole('row')[1]).getAllByRole('cell')[1]
+    expect(product.querySelector('.bg-oil.rounded-full')).not.toBeNull()
+    expect(product.querySelector('[data-slot="badge"]')).toBeNull()
   })
 
-  it('leaves the month out until the snapshot has loaded', () => {
-    show({ status: 'ready', data: fields }, null)
-    expect(screen.getByText('By total saleable production.')).toBeInTheDocument()
+  it('writes coordinates under each field name, in mono', () => {
+    show({ status: 'ready', data: fields })
+    expect(screen.getByText('58°26′N 001°53′E')).toHaveClass('font-mono', 'text-muted-foreground')
   })
 
   it('says so when a field has no operator in the data', () => {
@@ -63,7 +67,7 @@ describe('LargestFieldsCard', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     rerender(
       <MemoryRouter>
-        <LargestFieldsCard fields={{ status: 'error', message: 'Database is down.' }} until={null} />
+        <LargestFieldsCard fields={{ status: 'error', message: 'Database is down.' }} />
       </MemoryRouter>,
     )
     expect(screen.getByRole('alert')).toHaveTextContent('Database is down.')

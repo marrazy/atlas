@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import land from '@/assets/map/land.geojson?raw'
+import waterlines from '@/assets/map/waterlines.geojson?raw'
 import type { FieldSummary } from '@/lib/api/types'
 import { CHART_COLOURS } from '@/lib/charts/colours'
 import { fields } from '@/test/fixtures'
@@ -7,7 +8,9 @@ import {
   circleRadius,
   describeShelfMap,
   fieldBounds,
-  fieldHoverText,
+  fieldTooltipLines,
+  graticuleLabels,
+  GRATICULE_STEP,
   fieldKind,
   CIRCLE_FADE,
   FIELD_LAYERS,
@@ -17,7 +20,6 @@ import {
   outlineLayers,
   outlineStates,
   producingCount,
-  producingNotMapped,
   shelfMapStyle,
 } from './shelf-map'
 
@@ -42,43 +44,41 @@ describe('fieldKind', () => {
   })
 })
 
-describe('producingCount and producingNotMapped', () => {
+describe('producingCount', () => {
   it('counts every field with production in the year, mapped or not', () => {
     expect(producingCount(fields, 2012)).toBe(1)
     expect(producingCount(fields, 2025)).toBe(1)
     expect(producingCount(fields, 2020)).toBe(0)
   })
 
-  it('counts the producing fields that have no location, so the page can say why the map shows fewer', () => {
-    expect(producingNotMapped(fields, 2025)).toBe(1)
-    expect(producingNotMapped(fields, 2012)).toBe(0)
-  })
 })
 
 describe('circleRadius', () => {
-  it('runs from 4 for nothing to 22 for the largest field', () => {
-    expect(circleRadius(0, 100)).toBe(4)
-    expect(circleRadius(100, 100)).toBe(22)
-  })
-
-  it('grows with the square root, so circle area follows production', () => {
-    expect(circleRadius(25, 100)).toBe(4 + 18 * 0.5)
+  it('is 2.5 + 11 × √(share of the largest field), as design v2 sets it', () => {
+    expect(circleRadius(0, 100)).toBe(2.5)
+    expect(circleRadius(100, 100)).toBe(13.5)
+    expect(circleRadius(25, 100)).toBe(2.5 + 11 * 0.5)
   })
 })
 
-describe('fieldHoverText', () => {
-  it('describes a field from its API values, in the design style', () => {
-    expect(fieldHoverText(volve)).toBe(
-      'Volve · oil · first production 2008, shut down after 2016, 11.4 million Sm³ o.e. produced',
-    )
+describe('fieldTooltipLines', () => {
+  it('gives name, coordinates, main product, first production, shutdown and total, from the API values', () => {
+    expect(fieldTooltipLines(volve)).toEqual([
+      'Volve',
+      '58°26′N 001°53′E',
+      'Oil',
+      'First production 2008',
+      'Shut down after 2016',
+      '11.4 million Sm³ o.e. produced',
+    ])
   })
 
-  it('leaves out the shutdown for a field still producing', () => {
-    expect(fieldHoverText(sindre)).toBe('Sindre · gas · first production 2017, 0.3 million Sm³ o.e. produced')
+  it('leaves out the shutdown for a field still producing, and the coordinates when there are none', () => {
+    expect(fieldTooltipLines(sindre)).toEqual(['Sindre', 'Gas', 'First production 2017', '0.3 million Sm³ o.e. produced'])
   })
 
   it('says when a field has not produced', () => {
-    expect(fieldHoverText(berling)).toBe('Berling · gas · no production yet')
+    expect(fieldTooltipLines(berling)).toEqual(['Berling', '65°11′N 006°22′E', 'Gas', 'No production yet'])
   })
 })
 
@@ -113,7 +113,8 @@ describe('fieldPoints', () => {
 })
 
 describe('shelfMapStyle', () => {
-  const style = shelfMapStyle('/assets/land.geojson', fieldPoints(fields, 2012))
+  const style = shelfMapStyle('/assets/land.geojson', '/assets/waterlines.geojson', fieldPoints(fields, 2012))
+  const layer = (id: string) => style.layers.find((l) => l.id === id) as { filter: unknown; paint: Record<string, unknown> }
   const text = JSON.stringify(style)
 
   it('loads nothing from other sites: no tile server, fonts or icons', () => {
@@ -121,14 +122,30 @@ describe('shelfMapStyle', () => {
     expect(style).not.toHaveProperty('glyphs')
     expect(style).not.toHaveProperty('sprite')
     expect(style.sources.land.data).toBe('/assets/land.geojson')
+    expect(style.sources.waterlines.data).toBe('/assets/waterlines.geojson')
   })
 
-  it('draws stopped and not-yet fields as rings, and producing fields as filled circles', () => {
-    const layer = (id: string) => style.layers.find((l) => l.id === id) as { filter: unknown; paint: Record<string, unknown> }
+  it('looks like a printed sea chart: sea, land with a coastline, three waterlines and a light graticule', () => {
+    expect(layer('sea').paint['background-color']).toBe(CHART_COLOURS.sea)
+    expect(layer('land').paint['fill-color']).toBe(CHART_COLOURS.land)
+    expect(layer('coast').paint).toMatchObject({ 'line-color': CHART_COLOURS.landEdge, 'line-width': 1 })
+    const water = style.layers.filter((l) => l.id.startsWith('waterline-')) as { paint: Record<string, unknown> }[]
+    expect(water.map((l) => l.paint['line-offset'])).toEqual([-3, -7, -12])
+    expect(water.every((l) => l.paint['line-color'] === CHART_COLOURS.waterLine)).toBe(true)
+    expect(layer('graticule-coarse').paint['line-color']).toBe(CHART_COLOURS.grid)
+  })
+
+  it('draws stopped fields as rings at 0.75, not-yet fields at 0.14, and producing fields filled, all with a 1.5px edge', () => {
     expect(layer('fields-stopped').filter).toEqual(['==', ['get', 'kind'], 'stopped'])
-    expect(layer('fields-stopped').paint['circle-stroke-width']).toBe(2)
+    expect(layer('fields-stopped').paint).toMatchObject({ 'circle-opacity': 0, 'circle-stroke-width': 1.5, 'circle-stroke-opacity': 0.75 })
     expect(layer('fields-not-yet').filter).toEqual(['==', ['get', 'kind'], 'not-yet'])
+    expect(layer('fields-not-yet').paint['circle-stroke-opacity']).toBe(0.14)
     expect(layer('fields-producing').paint['circle-color']).toEqual(['match', ['get', 'product'], 'oil', CHART_COLOURS.oil, CHART_COLOURS.gas])
+    expect(layer('fields-producing').paint['circle-stroke-width']).toBe(1.5)
+  })
+
+  it('puts a 1.5px sea halo under every circle, so circles that touch stay apart', () => {
+    expect(layer('fields-halo').paint).toEqual({ 'circle-radius': ['+', ['get', 'radius'], 1.5], 'circle-color': CHART_COLOURS.sea })
   })
 
   it('draws the producing fields last, on top', () => {
@@ -156,18 +173,18 @@ describe('outlines', () => {
     expect(fill.paint['fill-color']).toEqual(['match', ['get', 'main_product'], 'oil', CHART_COLOURS.oil, CHART_COLOURS.gas])
   })
 
-  it('look like the circles: filled when producing that year, a thick edge when stopped, faint when not started', () => {
+  it('fill at 0.45 when producing that year, with a 1.2px edge, faint like the circles when stopped or not started', () => {
     const text = JSON.stringify([fill.paint, line.paint])
-    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'producing', 0.5, 0]))
-    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'stopped', 2, 1.2]))
-    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'not-yet', 0.5, 1]))
+    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'producing', 0.45, 0]))
+    expect(line.paint['line-width']).toBe(1.2)
+    expect(text).toContain(JSON.stringify(['match', ['feature-state', 'kind'], 'producing', 1, 'stopped', 0.75, 0.14]))
   })
 
   it('fade in over the same zooms as the circles fade out', () => {
     const zoomStops = (value: unknown) => (value as unknown[]).slice(3).filter((_, i) => i % 2 === 0)
     expect(zoomStops(fill.paint['fill-opacity'])).toEqual([OUTLINE_ZOOM.start, OUTLINE_ZOOM.end])
     expect(zoomStops(CIRCLE_FADE['fields-producing']['circle-opacity'])).toEqual([OUTLINE_ZOOM.start, OUTLINE_ZOOM.end])
-    expect(Object.keys(CIRCLE_FADE).sort()).toEqual([...FIELD_LAYERS].sort())
+    expect(Object.keys(CIRCLE_FADE).sort()).toEqual(['fields-halo', ...FIELD_LAYERS].sort())
   })
 
   it('load before they show, and show fully by the zoom the North Sea button goes to', () => {
@@ -213,5 +230,34 @@ describe('bundled coastline (land.geojson)', () => {
 
   it('has closed rings, as GeoJSON requires', () => {
     for (const ring of rings) expect(ring[0]).toEqual(ring.at(-1))
+  })
+})
+
+describe('bundled waterline coast (waterlines.geojson)', () => {
+  const data = JSON.parse(waterlines) as { features: { geometry: { type: string; coordinates: number[][][] } }[] }
+  const lines = data.features[0].geometry.coordinates
+
+  it('is a smooth copy of the larger land areas only, made by scripts/make_waterlines.py', () => {
+    expect(data.features[0].geometry.type).toBe('MultiLineString')
+    expect(lines.length).toBeGreaterThan(0)
+    expect(lines.length).toBeLessThan(50)
+  })
+
+  it('has closed lines, so the waterlines go all the way round', () => {
+    for (const line of lines) expect(line[0]).toEqual(line.at(-1))
+  })
+})
+
+describe('graticule', () => {
+  it('steps 2° of latitude and 4° of longitude on the whole shelf, and 1° when zoomed in', () => {
+    expect(GRATICULE_STEP).toEqual({ coarse: { lat: 2, lon: 4 }, fine: { lat: 1, lon: 1 } })
+  })
+
+  it('labels the lines like 60°N and 4°E, for the map edge', () => {
+    const { lats, lons } = graticuleLabels(GRATICULE_STEP.coarse)
+    expect(lats.find((l) => l.value === 60)?.text).toBe('60°N')
+    expect(lons.find((l) => l.value === 4)?.text).toBe('4°E')
+    expect(lons.find((l) => l.value === 0)?.text).toBe('0°E')
+    expect(lons.find((l) => l.value === -4)?.text).toBe('4°W')
   })
 })

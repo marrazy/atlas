@@ -9,10 +9,11 @@ import { FieldSources } from '@/components/field/FieldSources'
 import { FieldStats } from '@/components/field/FieldStats'
 import { InvestmentCard } from '@/components/field/InvestmentCard'
 import { ProductionCard } from '@/components/field/ProductionCard'
+import { PageFooter } from '@/components/layout/PageFooter'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { pageTitle } from '@/config'
+import { VOLVE_ID, VOLVE_PRODUCTION_NOTE, pageTitle } from '@/config'
 import { getField, getFieldInvestments, getFieldProduction, getFields } from '@/lib/api/client'
 import { useApi } from '@/lib/api/use-api'
 import { fitWindow } from '@/lib/decline'
@@ -21,10 +22,12 @@ function FieldNotFound() {
   return (
     <>
       <title>{pageTitle('Field not found')}</title>
-      <PageHeader title="Field not found" description="There is no field at this address." />
-      <Button asChild variant="outline" className="h-10 px-3">
+      <PageHeader title="Field not found" />
+      <p className="mb-4 text-sm text-text-2">There is no field at this address.</p>
+      <Button asChild variant="outline" className="h-9 px-3">
         <Link to="/fields">Open the field deep dive</Link>
       </Button>
+      <PageFooter />
     </>
   )
 }
@@ -61,7 +64,7 @@ function FieldView({ fieldId }: { fieldId: number }) {
             <ProductionCard
               fieldName={detail.status === 'ready' ? detail.data.name : ''}
               production={detail.status === 'ready' ? production : { status: 'loading' }}
-              fitWindow={window}
+              note={fieldId === VOLVE_ID ? VOLVE_PRODUCTION_NOTE : null}
             />
           </div>
           <div className="mt-4">
@@ -70,7 +73,7 @@ function FieldView({ fieldId }: { fieldId: number }) {
                 <DeclineCard field={detail.data} months={production.data} window={window} />
               )
             ) : production.status !== 'error' ? (
-              <ChartCard title="Decline curve forecast" busy>
+              <ChartCard title="Decline curve" busy>
                 <Skeleton className="h-[300px] w-full" />
               </ChartCard>
             ) : null}
@@ -81,9 +84,10 @@ function FieldView({ fieldId }: { fieldId: number }) {
               investments={detail.status === 'ready' ? investments : { status: 'loading' }}
             />
           </div>
-          {detail.status === 'ready' && <FieldSources field={detail.data} />}
+          {detail.status === 'ready' ? <FieldSources field={detail.data} /> : <PageFooter />}
         </>
       )}
+      {detail.status === 'error' && <PageFooter />}
     </>
   )
 }

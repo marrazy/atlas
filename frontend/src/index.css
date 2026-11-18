@@ -1,48 +1,67 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/inter/wght.css';
-@import '@fontsource/ibm-plex-mono/latin-400.css';
-@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource-variable/geist/wght.css';
+@import '@fontsource-variable/geist-mono/wght.css';
 
-@custom-variant dark (&:is(.dark *));
-
+/* Design v2 (docs/design-v2.md, section 2). The sidebar is dark, everything else is light. */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --radius: 0.5rem;
 
-  --background: #221f1e;
-  --foreground: #ebe5de;
-  --card: #2b2726;
-  --card-foreground: #ebe5de;
-  --popover: #2b2726;
-  --popover-foreground: #ebe5de;
-  --primary: #ebe5de;
-  --primary-foreground: #221f1e;
-  --secondary: #34302e;
-  --secondary-foreground: #ebe5de;
-  --muted: #34302e;
-  --muted-foreground: #a39a92;
-  --accent: #3a3533;
-  --accent-foreground: #ebe5de;
-  --destructive: #ff6467;
-  --border: #3d3836;
-  --input: #3d3836;
-  --ring: #ebe5de;
-
-  --sidebar: #1c1a19;
-  --sidebar-foreground: #ebe5de;
-  --sidebar-primary: #ebe5de;
-  --sidebar-primary-foreground: #221f1e;
-  --sidebar-accent: #3a3533;
-  --sidebar-accent-foreground: #ebe5de;
-  --sidebar-border: #3d3836;
-  --sidebar-ring: #ebe5de;
-
+  --page: #f6f6f7;
+  --card: #ffffff;
+  --raised: #f1f1f3;
+  --line: rgba(23, 23, 23, 0.09);
+  --text: #171717;
+  --text-2: #525252;
+  --muted-foreground: #6b6b6b;
   --oil: #d95926;
   --gas: #3987e5;
-  --water: #199e70;
-  --other: #6b625c;
+  --tint-oil: #fcefe7;
+  --tint-gas: #ebf2fc;
+  --positive: #16a34a;
+  --chart-grid: rgba(23, 23, 23, 0.08);
+  --other-line: #c3c3c8;
+  --neutral-bar: #d0d0d4;
+  --sea: #edf2f5;
+  --land: #e7e2d8;
+  --land-edge: #c9c0b0;
+  --water-line: rgba(57, 110, 160, 0.2);
+  --grid: rgba(23, 23, 23, 0.06);
+
+  --sidebar: #141415;
+  --sidebar-text: #ededed;
+  --sidebar-text-2: #a1a1a6;
+  --sidebar-muted: #85858b;
+  --sidebar-active: #232325;
+  --sidebar-line: rgba(237, 237, 237, 0.08);
+
+  /* the names shadcn/ui components use, pointed at the tokens above */
+  --background: #f6f6f7;
+  --foreground: #171717;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #171717;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f1f3;
+  --secondary-foreground: #171717;
+  --muted: #f1f1f3;
+  --accent: #f1f1f3;
+  --accent-foreground: #171717;
+  /* there is no red in this design, so errors use the main text colour and say what went wrong in words */
+  --destructive: #171717;
+  --border: rgba(23, 23, 23, 0.09);
+  --input: rgba(23, 23, 23, 0.09);
+  --ring: #171717;
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: #ededed;
+  --sidebar-primary-foreground: #141415;
+  --sidebar-accent: #232325;
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: rgba(237, 237, 237, 0.08);
+  --sidebar-ring: #ededed;
 }
 
 @theme inline {
@@ -65,19 +84,32 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  --color-page: var(--page);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-text-2: var(--text-2);
+  --color-oil: var(--oil);
+  --color-gas: var(--gas);
+  --color-tint-oil: var(--tint-oil);
+  --color-tint-gas: var(--tint-gas);
+  --color-positive: var(--positive);
+  --color-other-line: var(--other-line);
+  --color-neutral-bar: var(--neutral-bar);
+  --color-sea: var(--sea);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-text-2: var(--sidebar-text-2);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-line: var(--sidebar-line);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-
-  --color-oil: var(--oil);
-  --color-gas: var(--gas);
-  --color-water: var(--water);
-  --color-other: var(--other);
 
   --font-heading: var(--font-sans);
 
@@ -91,14 +123,19 @@
 }
 
 @theme {
-  --font-sans: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
-  --tracking-heading: -0.02em;
+  --font-sans: 'Geist Variable', Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-segment: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
   html {
@@ -107,10 +144,39 @@
 
   body {
     @apply bg-background font-sans text-foreground antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* section 2: a 2px solid ring in the text colour, 2px away, on every button, link and input */
+  :where(a, button, input, select, textarea, [role='button'], [role='tab'], [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* on the dark sidebar the ring uses the sidebar text colour, so it can be seen */
+  [data-surface='dark'] :focus-visible {
+    outline-color: var(--sidebar-text);
   }
 
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
   }
+}
+
+/* the year slider thumb from design v2: 16px, white, with a 2px border in the text colour */
+.year-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 2px solid var(--text);
+}
+.year-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 2px solid var(--text);
 }

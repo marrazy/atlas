@@ -42,13 +42,21 @@ export function findLifecycle(set: LifecycleSet, fieldId: number | null): Lifecy
 }
 
 /**
- * The fields for the years near peak bars: the largest fields by total production, plus the fields that can be
- * highlighted, most years near peak first. Fields with the same number of years keep the larger one first.
+ * The fields for the years near peak list: the largest fields by total production, plus the fields that can be
+ * highlighted, most years near peak first. Fields with the same number of years are in Norwegian alphabetical
+ * order, so Å comes last, as in the design.
  */
 export function nearPeakFields(set: LifecycleSet, fields: FieldSummary[], picks: number[], largest: number): Lifecycle[] {
   const size = new Map(fields.map((f) => [f.field_id, f.cum_oe_net_msm3]))
   const bySize = (a: Lifecycle, b: Lifecycle) => (size.get(b.field_id) ?? 0) - (size.get(a.field_id) ?? 0)
   const chosen = [...set.fields].sort(bySize).slice(0, largest)
   for (const f of set.fields) if (picks.includes(f.field_id) && !chosen.includes(f)) chosen.push(f)
-  return chosen.sort((a, b) => b.plateau_years - a.plateau_years || bySize(a, b))
+  return chosen.sort((a, b) => b.plateau_years - a.plateau_years || a.name.localeCompare(b.name, 'nb'))
+}
+
+const years = (n: number) => `${n} ${n === 1 ? 'year' : 'years'}`
+
+/** The sentence under the list about the selected field, from its lifecycle data. */
+export function nearPeakSentence(field: Lifecycle): string {
+  return `${field.name} started in ${field.first_year}, had its best year in ${field.peak_year}, and spent ${years(field.plateau_years)} within 10% of it`
 }

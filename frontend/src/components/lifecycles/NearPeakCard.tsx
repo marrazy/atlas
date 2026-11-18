@@ -1,60 +1,57 @@
-import { DownloadIcon, InfoIcon } from 'lucide-react'
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { ChartCard } from '@/components/ChartCard'
-import { ChartToolButton } from '@/components/charts/ChartToolButton'
-import { EChart, type EChartHandle } from '@/components/charts/EChart'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LIFECYCLE_PICKS, NEAR_PEAK_LARGEST } from '@/config'
 import type { FieldSummary, LifecycleSet } from '@/lib/api/types'
 import type { ApiState } from '@/lib/api/use-api'
-import { BAR_ROW_HEIGHT, nearPeakOption, nearPeakSentence } from '@/lib/charts/near-peak-option'
-import { saveChartImage } from '@/lib/charts/save-image'
-import { findLifecycle, nearPeakFields } from '@/lib/lifecycles'
+import { findLifecycle, nearPeakFields, nearPeakSentence } from '@/lib/lifecycles'
+import { cn } from '@/lib/utils'
 
 type Props = {
   lifecycles: ApiState<LifecycleSet>
   /** For the size of each field, to pick the largest ones. */
   fields: ApiState<FieldSummary[]>
   highlightId: number | null
+  className?: string
 }
 
-export function NearPeakCard({ lifecycles, fields, highlightId }: Props) {
-  const chart = useRef<EChartHandle>(null)
+/** Design v2 list: one 28px row per field with its name, a 6px bar and the number of years near peak. */
+export function NearPeakCard({ lifecycles, fields, highlightId, className }: Props) {
   const set = lifecycles.status === 'ready' ? lifecycles.data : null
   const list = fields.status === 'ready' ? fields.data : null
   const highlighted = set ? findLifecycle(set, highlightId) : null
-  const bars = useMemo(() => (set && list ? nearPeakFields(set, list, LIFECYCLE_PICKS, NEAR_PEAK_LARGEST) : null), [set, list])
-  const option = useMemo(() => (bars ? nearPeakOption(bars, highlighted) : null), [bars, highlighted])
+  const rows = useMemo(() => (set && list ? nearPeakFields(set, list, LIFECYCLE_PICKS, NEAR_PEAK_LARGEST) : null), [set, list])
   const error = lifecycles.status === 'error' ? lifecycles : fields.status === 'error' ? fields : null
-  const height = (bars?.length ?? NEAR_PEAK_LARGEST) * BAR_ROW_HEIGHT + 8
-
-  const actions = option && (
-    <ChartToolButton
-      label="Save as image"
-      icon={DownloadIcon}
-      onClick={() => saveChartImage(chart.current?.getEchartsInstance(), 'years-near-peak.png')}
-    />
-  )
+  const most = Math.max(1, ...(rows ?? []).map((f) => f.plateau_years))
 
   return (
-    <ChartCard
-      title="Years near peak"
-      description={`Years within 10% of the best year. The ${NEAR_PEAK_LARGEST} largest fields, plus the fields you can highlight.`}
-      actions={actions}
-      busy={!error && !option}
-    >
+    <ChartCard title="Years within 10% of the best year" busy={!error && !rows} className={className}>
       {error && <ErrorNotice message={error.message} onRetry={error.retry} />}
-      {!error && !option && <Skeleton style={{ height }} className="w-full" />}
-      {option && (
+      {!error && !rows && <Skeleton className="h-[440px] w-full" />}
+      {rows && (
         <>
-          <EChart option={option} height={height} chartRef={chart} replace={false} />
-          {highlighted && (
-            <p className="mt-3 flex gap-2 text-[13px] leading-normal text-muted-foreground">
-              <InfoIcon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-              <span>{nearPeakSentence(highlighted)}</span>
-            </p>
-          )}
+          <ul aria-label="Years within 10% of the best year, by field">
+            {rows.map((f) => {
+              const on = f.field_id === highlighted?.field_id
+              return (
+                <li key={f.field_id} className="grid h-7 grid-cols-[112px_1fr_24px] items-center gap-3">
+                  <span className={cn('truncate text-[13px]', on ? 'font-medium text-foreground' : 'text-text-2')}>{f.name}</span>
+                  <span aria-hidden="true" className="h-1.5 rounded-full bg-raised">
+                    <span
+                      className={cn('block h-full rounded-full', on ? 'bg-oil' : 'bg-neutral-bar')}
+                      style={{ width: `${(f.plateau_years / most) * 100}%` }}
+                    />
+                  </span>
+                  <span className="text-right font-mono text-xs tabular-nums">
+                    {f.plateau_years}
+                    <span className="sr-only"> {f.plateau_years === 1 ? 'year' : 'years'}</span>
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          {highlighted && <p className="mt-4 border-t pt-4 text-[13px] leading-5 text-text-2">{nearPeakSentence(highlighted)}</p>}
         </>
       )}
     </ChartCard>

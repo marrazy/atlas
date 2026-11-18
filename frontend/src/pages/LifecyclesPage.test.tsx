@@ -27,7 +27,7 @@ describe('Field lifecycles stat cards', () => {
   it('show the count and medians worked out from /api/lifecycles, with the rules for which fields are in', async () => {
     renderApp('/lifecycles')
     await waitFor(() => expect(card('Fields compared')[1]).toBe('1'))
-    expect(card('Fields compared')).toEqual(['Fields compared', '1', 'At least 8 million Sm³ o.e. and 4 years of production'])
+    expect(card('Fields compared')).toEqual(['Fields compared', '1', 'At least 8 million Sm³ o.e. and 4 full years'])
     // the test data has only Volve: best year 2009, one year after 2008, and one year near it
     expect(card('Typical best year')).toEqual([
       'Typical best year',
@@ -61,25 +61,21 @@ describe('Field lifecycles chart', () => {
     expect(fetchMock).toHaveBeenCalledWith(LIFECYCLES_URL, expect.anything())
   })
 
-  it('names each kind of line in the legend, and says how far the data goes from /api/snapshot', async () => {
+  it('names each kind of line in the legend, with the unit at the right, and no description line', async () => {
     renderApp('/lifecycles')
-    expect(await screen.findByRole('heading', { level: 2, name: 'Production as a share of best year' })).toBeInTheDocument()
-    expect(
-      await screen.findByText(
-        'Yearly saleable production in oil equivalent, full years up to 2025. Each line is one field, lined up at its first year of production.',
-      ),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Median of all fields')).toBeInTheDocument()
-    expect(screen.getByText('Other fields')).toBeInTheDocument()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Production as a share of the best year' })
+    expect(heading.parentElement!.querySelectorAll('p')).toHaveLength(0)
+    const card = within(heading.closest('section')!)
+    for (const item of ['Selected field', 'Median of all fields', 'Other fields', "Share of each field's best year"]) {
+      expect(await card.findByText(item)).toBeInTheDocument()
+    }
   })
 
-  it('has zoom, reset and save buttons', async () => {
+  it('has no toolbox buttons, as design v2 asks', async () => {
     renderApp('/lifecycles')
-    const heading = await screen.findByRole('heading', { level: 2, name: 'Production as a share of best year' })
-    const card = within(heading.closest('section')!)
-    expect(await card.findByRole('button', { name: 'Zoom into an area' })).toBeInTheDocument()
-    expect(card.getByRole('button', { name: 'Reset view' })).toBeInTheDocument()
-    expect(card.getByRole('button', { name: 'Save as image' })).toBeInTheDocument()
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Production as a share of the best year' })
+    await screen.findByRole('img', { name: /^Line chart/ })
+    expect(within(heading.closest('section')!).queryByRole('button')).not.toBeInTheDocument()
   })
 })
 
@@ -99,23 +95,31 @@ describe('Field lifecycles highlight', () => {
     mockApi({ ...API, [LIFECYCLES_URL]: withTroll })
     renderApp('/lifecycles')
     expect(
-      await screen.findByText('Volve started in 2008, had its best year in 2009, and spent 1 year within 10% of that best year.'),
+      await screen.findByText('Volve started in 2008, had its best year in 2009, and spent 1 year within 10% of it'),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Troll' }))
     expect(screen.getByRole('button', { name: 'Troll' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('img', { name: /^Line chart.*Troll is highlighted/ })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /^Bar chart.*Troll, highlighted, has 10 years/ })).toBeInTheDocument()
+    const list = screen.getByRole('list', { name: 'Years within 10% of the best year, by field' })
+    expect(within(list).getByText('Troll')).toHaveClass('font-medium')
+    expect(within(list).getByText('Volve')).not.toHaveClass('font-medium')
     expect(
-      screen.getByText('Troll started in 1990, had its best year in 2003, and spent 10 years within 10% of that best year.'),
+      screen.getByText('Troll started in 1990, had its best year in 2003, and spent 10 years within 10% of it'),
     ).toBeInTheDocument()
   })
 
-  it('shows the years near peak card with its rule, and the error if /api/fields fails', async () => {
+  it('lists the years within 10% of the best year as rows with a bar and a number, most years first', async () => {
+    mockApi({ ...API, [LIFECYCLES_URL]: withTroll })
+    renderApp('/lifecycles')
+    const list = await screen.findByRole('list', { name: 'Years within 10% of the best year, by field' })
+    expect(within(list).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['Troll10 years', 'Volve1 year'])
+  })
+
+  it('shows the error in the list card if /api/fields fails', async () => {
     mockApi({ ...API, '/api/fields': json({ detail: 'database is down' }, 500) })
     renderApp('/lifecycles')
-    expect(await screen.findByRole('heading', { level: 2, name: 'Years near peak' })).toBeInTheDocument()
-    expect(screen.getByText('Years within 10% of the best year. The 15 largest fields, plus the fields you can highlight.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Years within 10% of the best year' })).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent('Database is down.')
   })
 })

@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { SEGMENT_BUTTON, SEGMENT_OFF, SEGMENT_ON, SEGMENT_TRACK } from '@/components/segmented'
 import { cn } from '@/lib/utils'
 
 type Option = { id: number; name: string }
@@ -9,17 +10,17 @@ type Props = {
   onChange: (id: number) => void
 }
 
-/** A row of buttons, one per field, and the pressed one is highlighted on both charts. */
+/** A segmented control, one button per field, and the pressed one is highlighted on both charts. */
 export function HighlightPicker({ options, value, onChange }: Props) {
   const labelId = useId()
   if (options.length === 0) return null
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <span id={labelId} className="text-[13px] font-medium">
+      <span id={labelId} className="text-[13px] text-text-2">
         Highlight
       </span>
-      <div role="group" aria-labelledby={labelId} className="inline-flex flex-wrap gap-0.5 rounded-[10px] bg-muted p-1">
+      <div role="group" aria-labelledby={labelId} className={SEGMENT_TRACK}>
         {options.map((option) => {
           const on = option.id === value
           return (
@@ -28,10 +29,7 @@ export function HighlightPicker({ options, value, onChange }: Props) {
               type="button"
               aria-pressed={on}
               onClick={() => onChange(option.id)}
-              className={cn(
-                'min-h-9 rounded-md px-3.5 text-[13px] font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                on ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-              )}
+              className={cn(SEGMENT_BUTTON, on ? SEGMENT_ON : SEGMENT_OFF)}
             >
               {option.name}
             </button>

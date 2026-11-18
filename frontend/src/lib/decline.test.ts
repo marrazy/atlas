@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProductionMonth } from '@/lib/api/types'
 import { volveLateProduction } from '@/test/fixtures'
-import { describeB, describeTimeToLimit, fitWindow } from './decline'
+import { DECLINE_MODELS, VOLVE_MODEL_NOTES, describeBLimit, describeTimeToLimit, fitWindow, formatB } from './decline'
 
 const month = (m: string, oil_rate: number): ProductionMonth => ({ month: m, oil_rate, gas_rate: 0, gor: null, oe_net_msm3: 0 })
 
@@ -41,32 +41,54 @@ describe('fitWindow', () => {
   })
 })
 
-describe('describeB', () => {
-  it('names the fixed b of the exponential and harmonic models', () => {
-    expect(describeB({ model: 'exponential', b: 0, b_at_limit: false })).toBe('b = 0 (exponential)')
-    expect(describeB({ model: 'harmonic', b: 1, b_at_limit: false })).toBe('b = 1 (harmonic)')
+describe('formatB', () => {
+  it('gives the fixed b of the exponential and harmonic models', () => {
+    expect(formatB({ model: 'exponential', b: 0 })).toBe('0')
+    expect(formatB({ model: 'harmonic', b: 1 })).toBe('1')
   })
 
-  it('shows a fitted hyperbolic b with two decimals', () => {
-    expect(describeB({ model: 'hyperbolic', b: 0.437, b_at_limit: false })).toBe('b = 0.44 (hyperbolic)')
+  it('gives a fitted hyperbolic b with two decimals (Volve: 0.01)', () => {
+    expect(formatB({ model: 'hyperbolic', b: 0.437 })).toBe('0.44')
+    expect(formatB({ model: 'hyperbolic', b: 0.01 })).toBe('0.01')
+  })
+})
+
+describe('describeBLimit', () => {
+  it('says in plain words when b hit a limit, so b is not read as precise (Volve hits the lower one)', () => {
+    expect(describeBLimit({ model: 'hyperbolic', b: 0.01, b_at_limit: true })).toBe(
+      'b hit its lower limit, so this decline is really exponential',
+    )
+    expect(describeBLimit({ model: 'hyperbolic', b: 1, b_at_limit: true })).toBe(
+      'b hit its upper limit, so this decline is really harmonic',
+    )
   })
 
-  it('says in plain words when b hit a limit, instead of a precise looking number (Volve hits the lower one)', () => {
-    expect(describeB({ model: 'hyperbolic', b: 0.01, b_at_limit: true })).toBe(
-      'b hit its lower limit, so this decline is really exponential.',
-    )
-    expect(describeB({ model: 'hyperbolic', b: 1, b_at_limit: true })).toBe(
-      'b hit its upper limit, so this decline is really harmonic.',
-    )
+  it('says nothing when b is inside its range, or for the fixed models', () => {
+    expect(describeBLimit({ model: 'hyperbolic', b: 0.4, b_at_limit: false })).toBeNull()
+    expect(describeBLimit({ model: 'exponential', b: 0, b_at_limit: false })).toBeNull()
   })
 })
 
 describe('describeTimeToLimit', () => {
   it.each([
-    [15, 'Reaches the economic limit after about 15 more months with this model.'],
-    [59, 'Reaches the economic limit after about 4.9 more years with this model.'],
-    [null, 'Does not reach the economic limit within 50 years with this model.'],
+    [15, 'Reaches 300 Sm³/day after about 15 more months'],
+    [59, 'Reaches 300 Sm³/day after about 59 more months'],
+    [1, 'Reaches 300 Sm³/day after about 1 more month'],
+    [null, 'Does not reach the limit within 50 years'],
   ])('writes %s months as "%s"', (months, text) => {
     expect(describeTimeToLimit(months)).toBe(text)
+  })
+})
+
+describe('model notes', () => {
+  it('end without a full stop, as design v2 asks', () => {
+    for (const note of [...DECLINE_MODELS.map((m) => m.note), ...Object.values(VOLVE_MODEL_NOTES)]) {
+      expect(note).not.toMatch(/\.$/)
+    }
+  })
+
+  it('keep the Volve wording for Volve only, and a general version for other fields', () => {
+    expect(VOLVE_MODEL_NOTES.exponential).toBe('Constant decline rate. The most cautious forecast, and the best fit for Volve')
+    for (const m of DECLINE_MODELS) expect(m.note).not.toContain('Volve')
   })
 })

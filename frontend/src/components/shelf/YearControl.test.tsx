@@ -42,25 +42,16 @@ describe('YearControl', () => {
     expect(slider()).toHaveValue('1990')
   })
 
-  it('says how many fields had production in the year', () => {
+  it('says how many fields were producing in the year, under the big year', () => {
     render(<YearControl year={1990} min={1971} max={2025} producing={24} onYearChange={() => {}} />)
-    expect(screen.getByText('24 fields had production in 1990.')).toBeInTheDocument()
+    const count = screen.getByText(/24 fields producing$/)
+    expect(count).toHaveTextContent('In 1990, 24 fields producing')
+    expect(count).toHaveClass('text-xs', 'text-text-2')
   })
 
   it('writes "1 field", not "1 fields" (Ekofisk alone in 1971)', () => {
     render(<YearControl year={1971} min={1971} max={2025} producing={1} onYearChange={() => {}} />)
-    expect(screen.getByText('1 field had production in 1971.')).toBeInTheDocument()
-  })
-
-  it('says when producing fields are not on the map, and says nothing when all are', () => {
-    const { rerender } = render(<YearControl year={2025} min={1971} max={2025} producing={95} notMapped={1} onYearChange={() => {}} />)
-    expect(
-      screen.getByText('95 fields had production in 2025. 1 of them has no location in the data, so it is not on the map.'),
-    ).toBeInTheDocument()
-    rerender(<YearControl year={2025} min={1971} max={2025} producing={95} notMapped={2} onYearChange={() => {}} />)
-    expect(screen.getByText(/2 of them have no location in the data, so they are not on the map\.$/)).toBeInTheDocument()
-    rerender(<YearControl year={2025} min={1971} max={2025} producing={95} onYearChange={() => {}} />)
-    expect(screen.getByText('95 fields had production in 2025.')).toBeInTheDocument()
+    expect(screen.getByText(/1 field producing$/)).toBeInTheDocument()
   })
 
   it('starts again from the first year when play is pressed at the last year, then steps one year at a time', () => {
@@ -104,7 +95,7 @@ describe('YearControl', () => {
 
   it('keeps screen readers quiet while playing, and reads the count when paused', () => {
     render(<Harness start={2000} />)
-    const count = screen.getByText('100 fields had production in 2000.')
+    const count = screen.getByText(/100 fields producing$/)
     expect(count).toHaveAttribute('aria-live', 'polite')
     fireEvent.click(screen.getByRole('button', { name: 'Play through the years' }))
     expect(count).toHaveAttribute('aria-live', 'off')

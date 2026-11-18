@@ -79,6 +79,10 @@ export class Map {
   project([lon, lat]: [number, number]) {
     return { x: lon * 10, y: 800 - lat * 10 }
   }
+  /** The inverse of project, with a flat distance of 1 km per pixel, enough for the scale bar. */
+  unproject([x, y]: [number, number]) {
+    return { lng: x / 10, lat: (800 - y) / 10, distanceTo: (other: { lng: number }) => Math.abs(other.lng - x / 10) * 10 * 1000 }
+  }
 }
 
 export class Popup {
@@ -93,6 +97,11 @@ export class Popup {
   }
   setText(text: string) {
     this.text = text
+    return this
+  }
+  /** The tests read the tooltip as plain text, the way a person reads it. */
+  setHTML(html: string) {
+    this.text = new DOMParser().parseFromString(html.replace(/<\/div>/g, '</div>\n'), 'text/html').body.textContent!.trim()
     return this
   }
   addTo() {

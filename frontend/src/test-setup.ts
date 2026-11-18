@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
+import { fakeChart } from './test/echarts-stub'
 
 vi.mock('echarts-for-react/esm/core', () => import('./test/echarts-stub'))
 vi.mock('maplibre-gl', () => import('./test/maplibre-stub'))
@@ -29,4 +30,7 @@ window.ResizeObserver ??= class {
 }
 Element.prototype.scrollIntoView ??= function () {}
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  fakeChart.options.length = 0
+})

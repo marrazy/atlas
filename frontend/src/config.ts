@@ -19,6 +19,9 @@ export const SOURCE_CODE_URL = 'https://github.com/marrazy/atlas'
 export const DATA_CREDIT =
   'Data from the Norwegian Offshore Directorate (Sodir), Norwegian Licence for Open Government Data (NLOD).'
 
+/** The design writes the credit without a full stop at the end, so it is taken off the API's sentence. */
+export const CREDIT_LINE = DATA_CREDIT.replace(/\.$/, '')
+
 export function pageTitle(label: string): string {
   return `${label} · ${SITE_NAME}`
 }
@@ -34,3 +37,10 @@ export const LIFECYCLE_PICKS = [VOLVE_ID, 43658, 46437, 43506, 43686, 26376286]
 
 /** How many of the largest fields the years near peak bars show, besides the fields that can be highlighted. */
 export const NEAR_PEAK_LARGEST = 15
+
+/**
+ * A stretch of Volve's oil rate the design points out on the production chart. It is our own label on the
+ * monthly data, checked against /api/fields/3420717/production: the average oil rate goes from 1,218 Sm³/day in
+ * the 12 months before to 2,184 Sm³/day inside the band. It is only shown for Volve.
+ */
+export const VOLVE_PRODUCTION_NOTE = { start: '2013-08', end: '2015-06', label: 'Output rises again' } as const

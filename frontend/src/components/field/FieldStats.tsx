@@ -1,9 +1,8 @@
-import { CalendarIcon, CylinderIcon, GaugeIcon, TrendingUpIcon } from 'lucide-react'
 import { StatCard, StatGrid } from '@/components/StatCard'
 import { VOLVE_ID, VOLVE_RECOVERY_PERCENT } from '@/config'
 import type { FieldDetail, ProductionMonth } from '@/lib/api/types'
 import type { ApiState } from '@/lib/api/use-api'
-import { productionSpan } from '@/lib/field'
+import { producingLifeYears, productionSpan } from '@/lib/field'
 import { formatMonth, formatNumber } from '@/lib/format'
 import { SM3_TO_BBL } from '@/lib/units'
 
@@ -14,46 +13,37 @@ type Props = {
 
 type Shown = { value?: string; note?: string }
 
-/** First and last month come from the monthly data. If that fails to load, fall back to the years in the field record. */
-function productionMonths(field: FieldDetail, production: ApiState<ProductionMonth[]>): { first: Shown; last: Shown } {
-  if (production.status === 'loading') return { first: {}, last: {} }
-
+/** Producing life from the monthly data. If that fails to load, fall back to the years in the field record. */
+function producingLife(field: FieldDetail, production: ApiState<ProductionMonth[]>): Shown {
+  if (production.status === 'loading') return {}
   if (production.status === 'error') {
-    const note = 'Year only, the monthly data did not load'
-    return {
-      first: { value: String(field.first_production_year ?? 'None'), note },
-      last: { value: String(field.last_production_year ?? field.producing_years.at(-1) ?? 'None'), note },
-    }
+    const first = field.first_production_year
+    const last = field.last_production_year ?? field.producing_years.at(-1)
+    return first && last ? { value: `${last - first + 1} years`, note: `${first} to ${last}, the monthly data did not load` } : { value: 'Not available' }
   }
-
   const span = productionSpan(production.data)
-  if (!span) {
-    const none = { value: 'None', note: 'No production reported' }
-    return { first: none, last: none }
-  }
-
-  const lastNote =
-    field.status === 'Shut down' ? 'Field shut down' : field.status === 'Producing' ? 'Still producing' : 'Last month with output'
+  if (!span) return { value: 'None', note: 'No production reported' }
   return {
-    first: { value: formatMonth(span.first), note: 'First month with output' },
-    last: { value: formatMonth(span.last), note: lastNote },
+    value: `${formatNumber(producingLifeYears(span), 1)} years`,
+    note: `${formatMonth(span.first)} to ${formatMonth(span.last)}`,
   }
 }
 
+/** The four stat cards of design v2, section 6. The recovery rate is from Equinor, so only Volve has it. */
 export function FieldStats({ detail, production }: Props) {
   if (detail.status !== 'ready') {
     return (
       <StatGrid>
-        <StatCard label="First production" icon={CalendarIcon} />
-        <StatCard label="Last production" icon={CalendarIcon} />
-        <StatCard label="Total oil" icon={CylinderIcon} />
-        <StatCard label="Peak rate" icon={TrendingUpIcon} />
+        <StatCard label="Producing life" />
+        <StatCard label="Total oil" tint="oil" dot />
+        <StatCard label="Peak rate" />
+        <StatCard label="Discovered" />
       </StatGrid>
     )
   }
 
   const field = detail.data
-  const { first, last } = productionMonths(field, production)
+  const life = producingLife(field, production)
   const { peak_oil_rate: peakRate, peak_oil_month: peakMonth } = field
   const peak =
     peakRate !== null && peakMonth !== null
@@ -62,21 +52,22 @@ export function FieldStats({ detail, production }: Props) {
 
   return (
     <StatGrid>
-      <StatCard label="First production" icon={CalendarIcon} value={first.value} note={first.note} />
-      <StatCard label="Last production" icon={CalendarIcon} value={last.value} note={last.note} />
+      <StatCard label="Producing life" value={life.value} note={life.note} />
       <StatCard
         label="Total oil"
-        icon={CylinderIcon}
+        tint="oil"
+        dot
         value={`${formatNumber(field.total_oil_gross_mmbbl, 1)} MMbbl`}
-        note={field.total_oil_gross_mmbbl > 0 ? 'Million barrels, from Sodir' : 'No oil reported'}
+        note={field.total_oil_gross_mmbbl > 0 ? 'Million barrels, gross' : 'No oil reported'}
       />
-      <StatCard label="Peak rate" icon={TrendingUpIcon} value={peak.value} note={peak.note} />
-      {field.field_id === VOLVE_ID && (
+      <StatCard label="Peak rate" value={peak.value} note={peak.note} />
+      {field.field_id === VOLVE_ID ? (
+        <StatCard label="Recovery rate" value={`${VOLVE_RECOVERY_PERCENT}%`} note="Of oil in place, as reported by Equinor" />
+      ) : (
         <StatCard
-          label="Recovery rate"
-          icon={GaugeIcon}
-          value={`${VOLVE_RECOVERY_PERCENT}%`}
-          note="Oil in place recovered, per Equinor"
+          label="Discovered"
+          value={field.discovery_year === null ? 'Not in the data' : String(field.discovery_year)}
+          note="Discovery year, from Sodir"
         />
       )}
     </StatGrid>
