@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { fakeChart } from '@/test/echarts-stub'
 import { fields, shelf, snapshot } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
@@ -12,6 +12,9 @@ function card(label: string) {
   const term = screen.getByText(label, { selector: 'dt' })
   return [...term.parentElement!.querySelectorAll('dt, dd')].map((el) => el.textContent)
 }
+
+// the page loads lazily, so load its code once here and the first test does not spend its wait time on that
+beforeAll(() => import('@/pages/ShelfMapPage'))
 
 beforeEach(() => {
   setWindowWidth(1280)
@@ -81,6 +84,13 @@ describe('Shelf map page', () => {
     fireEvent.change(slider, { target: { value: '2012' } })
     expect(screen.getByText('1 field had production in 2012.')).toBeInTheDocument()
     await waitFor(() => expect(lineYear()).toBe('2012'))
+  })
+
+  it('shows the largest fields table from /api/fields', async () => {
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Largest fields' })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Volve' })).toHaveAttribute('href', '/fields/3420717')
+    expect(await screen.findByText('By total saleable production, up to August 2026.')).toBeInTheDocument()
   })
 
   it('updates the chart in place, so the year line moves without redrawing the areas', async () => {

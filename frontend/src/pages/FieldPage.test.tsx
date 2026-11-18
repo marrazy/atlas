@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { FieldDetail, ProductionMonth } from '@/lib/api/types'
 import { fields, snapshot, volve, volveDeclineHyperbolic, volveInvestments, volveProduction } from '@/test/fixtures'
 import { json, mockApi } from '@/test/mock-api'
@@ -45,6 +45,9 @@ function card(label: string) {
 }
 
 const cardLabels = () => screen.queryAllByRole('term').map((dt) => dt.textContent)
+
+// the page loads lazily, so load its code once here and the first test does not spend its wait time on that
+beforeAll(() => import('@/pages/FieldPage'))
 
 beforeEach(() => {
   setWindowWidth(1280)

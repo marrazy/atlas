@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { useSnapshot } from '@/components/layout/snapshot-context'
+import { LargestFieldsCard } from '@/components/shelf/LargestFieldsCard'
 import { ShelfMapCard } from '@/components/shelf/ShelfMapCard'
 import { ShelfProductionCard } from '@/components/shelf/ShelfProductionCard'
 import { ShelfStats } from '@/components/shelf/ShelfStats'
@@ -43,6 +44,9 @@ export function ShelfMapPage() {
       </div>
       <div className="mt-4">
         <ShelfProductionCard shelf={shelf} year={year} />
+      </div>
+      <div className="mt-4">
+        <LargestFieldsCard fields={fields} until={until} />
       </div>
     </>
   )

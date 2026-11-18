@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldSummary } from '@/lib/api/types'
 import { fields } from '@/test/fixtures'
-import { fieldCounts, firstField, yearRange } from './shelf'
+import { LARGEST_FIELDS_COUNT, fieldCounts, firstField, largestFields, yearRange } from './shelf'
 
 const field = (changes: Partial<FieldSummary>): FieldSummary => ({ ...fields[0], ...changes })
 
@@ -40,5 +40,19 @@ describe('yearRange', () => {
 
   it('gives nothing when no field has produced', () => {
     expect(yearRange([fields[2]], 2025)).toBeNull()
+  })
+})
+
+describe('largestFields', () => {
+  it('ranks fields by total saleable production, largest first, and leaves out fields that never produced', () => {
+    expect(largestFields(fields).map((f) => f.name)).toEqual(['Volve', 'Sindre'])
+  })
+
+  it('keeps only the first rows and does not change the list it was given', () => {
+    const many = Array.from({ length: 12 }, (_, i) => field({ field_id: i, name: `F${i}`, cum_oe_net_msm3: i + 1 }))
+    const top = largestFields(many)
+    expect(top).toHaveLength(LARGEST_FIELDS_COUNT)
+    expect(top[0].name).toBe('F11')
+    expect(many[0].name).toBe('F0')
   })
 })

@@ -35,3 +35,14 @@ export function firstField(fields: FieldSummary[]): { name: string; year: number
   }
   return first
 }
+
+/** How many rows the largest fields table shows, like the design. */
+export const LARGEST_FIELDS_COUNT = 8
+
+/** The fields with the most total saleable production, largest first. Fields that never produced are left out. */
+export function largestFields(fields: FieldSummary[], count = LARGEST_FIELDS_COUNT): FieldSummary[] {
+  return fields
+    .filter((f) => f.cum_oe_net_msm3 > 0)
+    .sort((a, b) => b.cum_oe_net_msm3 - a.cum_oe_net_msm3)
+    .slice(0, count)
+}
