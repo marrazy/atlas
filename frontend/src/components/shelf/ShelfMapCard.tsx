@@ -39,8 +39,9 @@ export function ShelfMapCard({ fields, year, range, onYearChange }: Props) {
     <ChartCard
       title="Fields on the shelf"
       description="Each field is a circle at the centre of its outline. Drag the year or press play to see which fields were producing. Zoom in to see the real field outlines. Click a field to open its deep dive."
+      busy={fields.status !== 'error' && !ready}
     >
-      {fields.status === 'error' && <ErrorNotice message={fields.message} />}
+      {fields.status === 'error' && <ErrorNotice message={fields.message} onRetry={fields.retry} />}
       {fields.status !== 'error' && !ready && mapPlaceholder}
       {ready && (
         <Suspense fallback={mapPlaceholder}>

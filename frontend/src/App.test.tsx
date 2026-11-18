@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DATA_CREDIT, SOURCE_CODE_URL } from '@/config'
 import { fields, snapshot, volve, volveProduction } from '@/test/fixtures'
-import { mockApi } from '@/test/mock-api'
+import { json, mockApi } from '@/test/mock-api'
 import { renderApp as renderAt, setWindowWidth as setWidth } from '@/test/render-app'
 
 const nav = () => screen.getByRole('navigation', { name: 'Main' })
@@ -84,6 +84,20 @@ describe('header', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     expect(screen.getByText('Snapshot')).toBeInTheDocument()
     expect(screen.queryByText(/Snapshot ·/)).not.toBeInTheDocument()
+  })
+
+  it('loads the snapshot again on the next screen when it failed, and then shows the date', async () => {
+    let calls = 0
+    mockApi({
+      '/api/snapshot': () => Promise.resolve(++calls === 1 ? json({}, 503) : json(snapshot)),
+    })
+    renderAt('/')
+    await waitFor(() => expect(calls).toBe(1))
+    expect(await screen.findByText('Snapshot')).toBeInTheDocument()
+
+    fireEvent.click(within(nav()).getByRole('link', { name: 'Field lifecycles' }))
+    expect(await screen.findByText('Snapshot · Aug 2026')).toBeInTheDocument()
+    expect(calls).toBe(2)
   })
 
   it('links the breadcrumb home and the source code to GitHub', () => {

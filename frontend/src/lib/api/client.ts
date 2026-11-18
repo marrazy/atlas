@@ -1,4 +1,4 @@
-import { ApiError, NETWORK_MESSAGE, UNREADABLE_MESSAGE, errorMessage, isAbortError } from './errors'
+import { ApiError, NETWORK_MESSAGE, TIMEOUT_MESSAGE, UNREADABLE_MESSAGE, errorMessage, isAbortError } from './errors'
 import type {
   DeclineRequest,
   DeclineResult,
@@ -22,19 +22,44 @@ async function readJson(res: Response): Promise<unknown> {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let res: Response
-  try {
-    res = await fetch(`/api${path}`, init)
-  } catch (error) {
-    if (isAbortError(error)) throw error
-    throw new ApiError(0, NETWORK_MESSAGE)
-  }
+/**
+ * How long to wait for an answer before giving up, so a screen never shows its loading placeholders forever.
+ * It is long, because a sleeping server can take a while to wake up.
+ */
+export const REQUEST_TIMEOUT_MS = 30_000
 
-  const body = await readJson(res)
-  if (!res.ok) throw new ApiError(res.status, errorMessage(res.status, body))
-  if (body === undefined) throw new ApiError(res.status, UNREADABLE_MESSAGE)
-  return body as T
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // one signal that stops the request when the caller cancels it or when the time runs out
+  const controller = new AbortController()
+  const outer = init.signal
+  const cancel = () => controller.abort()
+  if (outer?.aborted) cancel()
+  outer?.addEventListener('abort', cancel)
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, REQUEST_TIMEOUT_MS)
+
+  try {
+    let res: Response
+    try {
+      res = await fetch(`/api${path}`, { ...init, signal: controller.signal })
+    } catch (error) {
+      if (timedOut) throw new ApiError(0, TIMEOUT_MESSAGE)
+      if (isAbortError(error)) throw error
+      throw new ApiError(0, NETWORK_MESSAGE)
+    }
+
+    const body = await readJson(res)
+    if (timedOut) throw new ApiError(0, TIMEOUT_MESSAGE)
+    if (!res.ok) throw new ApiError(res.status, errorMessage(res.status, body))
+    if (body === undefined) throw new ApiError(res.status, UNREADABLE_MESSAGE)
+    return body as T
+  } finally {
+    clearTimeout(timer)
+    outer?.removeEventListener('abort', cancel)
+  }
 }
 
 export function getSnapshot({ signal }: RequestOptions = {}) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { apiErrors } from '@/test/fixtures'
-import { ApiError, UNKNOWN_MESSAGE, describeError, errorMessage } from './errors'
+import { ApiError, UNAVAILABLE_MESSAGE, UNKNOWN_MESSAGE, describeError, errorMessage } from './errors'
 
 const message = (name: keyof typeof apiErrors) => errorMessage(apiErrors[name].status, apiErrors[name].body)
 
@@ -39,13 +39,25 @@ describe('errorMessage, when detail is a list of rejected inputs', () => {
 
 describe('errorMessage, when there is no usable detail', () => {
   it.each([
-    ['an HTML error page', 502, undefined],
+    ['an HTML error page', 500, undefined],
     ['an empty object', 500, {}],
     ['an empty text detail', 500, { detail: '  ' }],
     ['a list with nothing readable', 422, { detail: [{ loc: ['body'] }] }],
-    ['null', 503, null],
+    ['null', 500, null],
   ])('falls back to the status code for %s', (_name, status, body) => {
     expect(errorMessage(status, body)).toBe(`The server answered with error ${status}.`)
+  })
+
+  it.each([
+    ['an HTML error page from a proxy', 502, undefined],
+    ['null', 503, null],
+    ['an empty object', 504, {}],
+  ])('says the server is not available for %s with status %i, when the API is down or waking up', (_name, status, body) => {
+    expect(errorMessage(status, body)).toBe(UNAVAILABLE_MESSAGE)
+  })
+
+  it('still uses the API\'s own text when a 503 has one', () => {
+    expect(errorMessage(503, { detail: 'Snapshot is being rebuilt' })).toBe('Snapshot is being rebuilt.')
   })
 })
 

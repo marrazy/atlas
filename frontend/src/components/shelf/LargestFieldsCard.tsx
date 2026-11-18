@@ -23,8 +23,9 @@ export function LargestFieldsCard({ fields, until }: Props) {
     <ChartCard
       title="Largest fields"
       description={`By total saleable production${until ? `, up to ${until}` : ''}.`}
+      busy={fields.status === 'loading'}
     >
-      {fields.status === 'error' && <ErrorNotice message={fields.message} />}
+      {fields.status === 'error' && <ErrorNotice message={fields.message} onRetry={fields.retry} />}
       {fields.status === 'loading' && (
         <div className="flex flex-col gap-2">
           {Array.from({ length: LARGEST_FIELDS_COUNT }, (_, i) => (

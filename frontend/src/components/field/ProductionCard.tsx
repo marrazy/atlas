@@ -66,9 +66,10 @@ export function ProductionCard({ fieldName, production, fitWindow = null }: Prop
       title="Production"
       description="Gross volumes for the field from Sodir, as a daily average for each month. The two charts share one crosshair, so hovering one shows the same month on both."
       actions={actions}
+      busy={production.status === 'loading'}
     >
       {production.status === 'loading' && <Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}
-      {production.status === 'error' && <ErrorNotice message={production.message} />}
+      {production.status === 'error' && <ErrorNotice message={production.message} onRetry={production.retry} />}
       {production.status === 'ready' && !option && (
         <p className="py-10 text-center text-sm text-muted-foreground">No production reported for this field.</p>
       )}

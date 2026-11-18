@@ -66,9 +66,10 @@ export function LifecycleCard({ lifecycles, highlightId, lastFullYear }: Props) 
       title="Production as a share of best year"
       description={`Yearly saleable production in oil equivalent, full years${lastFullYear ? ` up to ${lastFullYear}` : ''}. Each line is one field, lined up at its first year of production.`}
       actions={actions}
+      busy={lifecycles.status === 'loading'}
     >
       {lifecycles.status === 'loading' && <Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}
-      {lifecycles.status === 'error' && <ErrorNotice message={lifecycles.message} />}
+      {lifecycles.status === 'error' && <ErrorNotice message={lifecycles.message} onRetry={lifecycles.retry} />}
       {option && (
         <>
           <div className="mb-2.5 flex flex-wrap gap-3.5">

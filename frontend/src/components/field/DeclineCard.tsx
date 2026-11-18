@@ -114,10 +114,11 @@ function DeclineBody({ field, months, window, model }: BodyProps) {
     [fit, field.name, months, window, shutDown],
   )
 
-  if (fit.status === 'error') return <ErrorNotice message={fit.message} />
+  if (fit.status === 'error') return <ErrorNotice message={fit.message} onRetry={fit.retry} />
 
   return (
-    <div className="flex flex-wrap gap-5">
+    <div className="flex flex-wrap gap-5" aria-busy={fit.status === 'loading'}>
+      {fit.status === 'loading' && <p className="sr-only">Loading</p>}
       <div className="min-w-0 flex-[3_1_440px]">
         <Legend />
         {option ? <EChart option={option} height={CHART_HEIGHT} /> : <Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}

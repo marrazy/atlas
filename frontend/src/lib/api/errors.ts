@@ -1,6 +1,8 @@
 export const NETWORK_MESSAGE = 'Could not reach the server. Check your connection and try again.'
 export const UNREADABLE_MESSAGE = 'The server sent data the app could not read.'
 export const UNKNOWN_MESSAGE = 'Something went wrong. Please try again.'
+export const UNAVAILABLE_MESSAGE = 'The server is not available right now. Please try again in a moment.'
+export const TIMEOUT_MESSAGE = 'The server took too long to answer. Please try again.'
 
 export class ApiError extends Error {
   /** HTTP status, or 0 when the server could not be reached. */
@@ -53,6 +55,9 @@ export function errorMessage(status: number, body: unknown): string {
     const lines = detail.map((item: ValidationItem) => validationLine(item)).filter(Boolean)
     if (lines.length) return lines.join(' ')
   }
+
+  // a proxy in front of the API (Vite here, Heroku or Cloudflare live) answers these when the API is down or waking up
+  if (status === 502 || status === 503 || status === 504) return UNAVAILABLE_MESSAGE
 
   return `The server answered with error ${status}.`
 }

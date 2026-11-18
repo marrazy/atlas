@@ -45,9 +45,10 @@ export function ShelfProductionCard({ shelf, year = null }: Props) {
       title="Shelf production by year"
       description="Saleable oil and gas, million Sm³ oil equivalent, full years only. Hover for each year."
       actions={actions}
+      busy={shelf.status === 'loading'}
     >
       {shelf.status === 'loading' && <Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}
-      {shelf.status === 'error' && <ErrorNotice message={shelf.message} />}
+      {shelf.status === 'error' && <ErrorNotice message={shelf.message} onRetry={shelf.retry} />}
       {option && (
         <>
           <div className="mb-2.5 flex flex-wrap gap-3.5">

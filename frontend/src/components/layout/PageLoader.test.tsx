@@ -7,6 +7,9 @@ const NeverLoads = lazy(() => new Promise<{ default: () => null }>(() => {}))
 const FailsToLoad = lazy(() =>
   Promise.reject(new TypeError('Failed to fetch dynamically imported module: /assets/FieldPage-old.js')),
 )
+function Crashes(): never {
+  throw new TypeError("Cannot read properties of undefined (reading 'name')")
+}
 const Loads = lazy(() => Promise.resolve({ default: () => <h1>Field lifecycles</h1> }))
 
 describe('PageLoader', () => {
@@ -43,6 +46,17 @@ describe('PageLoader', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This page could not load.')
     fireEvent.click(screen.getByRole('button', { name: 'Reload page' }))
     expect(reload).toHaveBeenCalled()
+  })
+
+  it('gives a plain message, not the new release one, when the page breaks for another reason', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(
+      <PageLoader resetKey="/lifecycles">
+        <Crashes />
+      </PageLoader>,
+    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Something went wrong while showing this page.')
+    expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument()
   })
 
   it('clears the error when the visitor moves to another screen', async () => {

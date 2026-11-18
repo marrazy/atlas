@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { ApiError, UNKNOWN_MESSAGE } from './errors'
+import { ApiError, NETWORK_MESSAGE, UNKNOWN_MESSAGE } from './errors'
 import { useApi } from './use-api'
 
 function deferred<T>() {
@@ -29,7 +29,9 @@ describe('useApi', () => {
 
   it('gives a general message for an error that did not come from the API', async () => {
     const { result } = renderHook(() => useApi('a', () => Promise.reject(new TypeError('boom'))))
-    await waitFor(() => expect(result.current).toEqual({ status: 'error', message: UNKNOWN_MESSAGE }))
+    await waitFor(() =>
+      expect(result.current).toEqual({ status: 'error', message: UNKNOWN_MESSAGE, retry: expect.any(Function) }),
+    )
   })
 
   it('loads again and cancels the old request when the key changes', async () => {
@@ -81,5 +83,42 @@ describe('useApi', () => {
     )
     unmount()
     expect(seen?.aborted).toBe(true)
+  })
+
+  describe('trying again', () => {
+    it('offers a retry when the server was not reached, or had a fault', async () => {
+      const network = renderHook(() => useApi('a', () => Promise.reject(new ApiError(0, NETWORK_MESSAGE))))
+      const fault = renderHook(() => useApi('b', () => Promise.reject(new ApiError(503, 'Service unavailable.'))))
+      await waitFor(() => expect(network.result.current).toMatchObject({ status: 'error', retry: expect.any(Function) }))
+      await waitFor(() =>
+        expect(fault.result.current).toMatchObject({ status: 'error', httpStatus: 503, retry: expect.any(Function) }),
+      )
+    })
+
+    it('offers no retry when the server said the request itself is wrong, since the same request would fail again', async () => {
+      const missing = renderHook(() => useApi('a', () => Promise.reject(new ApiError(404, 'No field with id 1.'))))
+      const unfit = renderHook(() => useApi('b', () => Promise.reject(new ApiError(422, 'Too few months to fit.'))))
+      await waitFor(() => expect(missing.result.current.status).toBe('error'))
+      await waitFor(() => expect(unfit.result.current.status).toBe('error'))
+      expect(missing.result.current).not.toHaveProperty('retry')
+      expect(unfit.result.current).not.toHaveProperty('retry')
+    })
+
+    it('loads the same data again, showing loading in between, and shows it when it arrives', async () => {
+      const second = deferred<string>()
+      const load = vi
+        .fn<(signal: AbortSignal) => Promise<string>>()
+        .mockRejectedValueOnce(new ApiError(0, NETWORK_MESSAGE))
+        .mockReturnValueOnce(second.promise)
+      const { result } = renderHook(() => useApi('a', load))
+      await waitFor(() => expect(result.current.status).toBe('error'))
+
+      act(() => (result.current as { retry: () => void }).retry())
+      expect(result.current).toEqual({ status: 'loading' })
+      expect(load).toHaveBeenCalledTimes(2)
+
+      await act(async () => second.resolve('Volve'))
+      expect(result.current).toEqual({ status: 'ready', data: 'Volve' })
+    })
   })
 })

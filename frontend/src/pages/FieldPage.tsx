@@ -53,7 +53,7 @@ function FieldView({ fieldId }: { fieldId: number }) {
       <title>{pageTitle(detail.status === 'ready' ? detail.data.name : 'Field deep dive')}</title>
       <FieldHeader detail={detail} picker={picker} />
       {detail.status === 'error' ? (
-        <ErrorNotice message={detail.message} />
+        <ErrorNotice message={detail.message} onRetry={detail.retry} />
       ) : (
         <>
           <FieldStats detail={detail} production={production} />
@@ -70,7 +70,7 @@ function FieldView({ fieldId }: { fieldId: number }) {
                 <DeclineCard field={detail.data} months={production.data} window={window} />
               )
             ) : production.status !== 'error' ? (
-              <ChartCard title="Decline curve forecast">
+              <ChartCard title="Decline curve forecast" busy>
                 <Skeleton className="h-[300px] w-full" />
               </ChartCard>
             ) : null}

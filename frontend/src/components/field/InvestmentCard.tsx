@@ -37,9 +37,9 @@ export function InvestmentCard({ fieldName, investments }: Props) {
   )
 
   return (
-    <ChartCard title="Investment by year" description={description} actions={actions}>
+    <ChartCard title="Investment by year" description={description} actions={actions} busy={investments.status === 'loading'}>
       {investments.status === 'loading' && <Skeleton style={{ height: CHART_HEIGHT }} className="w-full" />}
-      {investments.status === 'error' && <ErrorNotice message={investments.message} />}
+      {investments.status === 'error' && <ErrorNotice message={investments.message} onRetry={investments.retry} />}
       {investments.status === 'ready' && !option && (
         <p className="py-10 text-center text-sm text-muted-foreground">No investment reported for this field.</p>
       )}

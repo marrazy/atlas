@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useEffect, useEffectEvent, type CSSProperties } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -16,6 +16,12 @@ const keepOpen = () => {}
 export function AppLayout() {
   const snapshot = useApi('snapshot', (signal) => getSnapshot({ signal }))
   const { pathname } = useLocation()
+
+  // the snapshot date is loaded once for every screen, so if that failed, moving to another screen tries again
+  const retrySnapshot = useEffectEvent(() => {
+    if (snapshot.status === 'error') snapshot.retry?.()
+  })
+  useEffect(() => retrySnapshot(), [pathname])
 
   return (
     <TooltipProvider>

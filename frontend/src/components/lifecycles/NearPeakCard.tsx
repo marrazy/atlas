@@ -26,7 +26,7 @@ export function NearPeakCard({ lifecycles, fields, highlightId }: Props) {
   const highlighted = set ? findLifecycle(set, highlightId) : null
   const bars = useMemo(() => (set && list ? nearPeakFields(set, list, LIFECYCLE_PICKS, NEAR_PEAK_LARGEST) : null), [set, list])
   const option = useMemo(() => (bars ? nearPeakOption(bars, highlighted) : null), [bars, highlighted])
-  const error = lifecycles.status === 'error' ? lifecycles.message : fields.status === 'error' ? fields.message : null
+  const error = lifecycles.status === 'error' ? lifecycles : fields.status === 'error' ? fields : null
   const height = (bars?.length ?? NEAR_PEAK_LARGEST) * BAR_ROW_HEIGHT + 8
 
   const actions = option && (
@@ -42,8 +42,9 @@ export function NearPeakCard({ lifecycles, fields, highlightId }: Props) {
       title="Years near peak"
       description={`Years within 10% of the best year. The ${NEAR_PEAK_LARGEST} largest fields, plus the fields you can highlight.`}
       actions={actions}
+      busy={!error && !option}
     >
-      {error && <ErrorNotice message={error} />}
+      {error && <ErrorNotice message={error.message} onRetry={error.retry} />}
       {!error && !option && <Skeleton style={{ height }} className="w-full" />}
       {option && (
         <>

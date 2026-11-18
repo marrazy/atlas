@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { fakeChart } from '@/test/echarts-stub'
 import { fields, shelf, snapshot } from '@/test/fixtures'
@@ -48,6 +48,25 @@ describe('Shelf map stat cards', () => {
     await waitFor(() => expect(card('Peak year')[1]).toBe('Not available'))
     expect(card('Producing fields')[1]).toBe('Not available')
     expect(await screen.findByRole('alert')).toHaveTextContent('Database is down.')
+  })
+})
+
+describe('Shelf map errors', () => {
+  it('loads the data again with "Try again" after a server fault, and then shows it', async () => {
+    let calls = 0
+    mockApi({
+      ...API,
+      '/api/shelf': () => Promise.resolve(++calls === 1 ? json({ detail: 'database is down' }, 500) : json(shelf)),
+    })
+    renderApp('/')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Database is down.')
+
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('img', { name: /^Stacked area chart/ })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(card('Peak year')[1]).toBe('2004')
+    expect(calls).toBe(2)
   })
 })
 
