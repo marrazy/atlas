@@ -20,3 +20,12 @@ export const DATA_CREDIT =
 export function pageTitle(label: string): string {
   return `${label} · ${SITE_NAME}`
 }
+
+/** Only fields that produced at least this much are compared on the lifecycles page, million Sm³ o.e. Sent to /api/lifecycles. */
+export const LIFECYCLE_MIN_CUM = 8
+
+/**
+ * The API also leaves out fields with fewer years of production than this. The value is MIN_LIFECYCLE_YEARS in
+ * backend/src/api/routes.py, repeated here only so the page can explain the rule. Keep the two the same.
+ */
+export const LIFECYCLE_MIN_YEARS = 4
