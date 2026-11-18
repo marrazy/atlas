@@ -69,4 +69,16 @@ describe('LargestFieldsCard', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Database is down.')
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
+
+  it('hides first production and operator on a phone, so the total stays in view', () => {
+    show({ status: 'ready', data: fields })
+    const [, product, first, operator, total] = screen.getAllByRole('columnheader')
+    expect(first).toHaveClass('hidden', 'sm:table-cell')
+    expect(operator).toHaveClass('hidden', 'sm:table-cell')
+    expect(product).not.toHaveClass('hidden')
+    expect(total).not.toHaveClass('hidden')
+    const cellsOfVolve = within(screen.getAllByRole('row')[1]).getAllByRole('cell')
+    expect(cellsOfVolve[2]).toHaveClass('hidden', 'sm:table-cell')
+    expect(cellsOfVolve[3]).toHaveClass('hidden', 'sm:table-cell')
+  })
 })

@@ -74,3 +74,9 @@ describe('investmentTooltip', () => {
     expect(investmentTooltip([])).toBe('')
   })
 })
+
+describe('investmentOption headroom', () => {
+  it('leaves room above the tallest bar, so its value label does not touch the axis title', () => {
+    expect(investmentOption('Volve', investmentSeries(volveInvestments)!).yAxis.boundaryGap).toEqual([0, '15%'])
+  })
+})

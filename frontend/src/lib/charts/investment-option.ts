@@ -66,6 +66,8 @@ export function investmentOption(fieldName: string, s: InvestmentSeries) {
     yAxis: {
       type: 'value' as const,
       name: 'Million NOK',
+      // room above the tallest bar for its value label, so it does not touch the axis title
+      boundaryGap: [0, '15%'],
       nameTextStyle: { color: C.mutedForeground, fontFamily: F.sans, fontSize: 11, align: 'left' as const },
       nameGap: 12,
       axisLabel: { ...axisText, formatter: formatCompact },

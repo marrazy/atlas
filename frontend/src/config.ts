@@ -1,3 +1,5 @@
+import { BACKEND_RULES } from '@/lib/backend-rules'
+
 export const SITE_NAME = 'North Sea Field Atlas'
 
 export const VOLVE_ID = 3420717
@@ -24,11 +26,8 @@ export function pageTitle(label: string): string {
 /** Only fields that produced at least this much are compared on the lifecycles page, million Sm³ o.e. Sent to /api/lifecycles. */
 export const LIFECYCLE_MIN_CUM = 8
 
-/**
- * The API also leaves out fields with fewer years of production than this. The value is MIN_LIFECYCLE_YEARS in
- * backend/src/api/routes.py, repeated here only so the page can explain the rule. Keep the two the same.
- */
-export const LIFECYCLE_MIN_YEARS = 4
+/** The API also leaves out fields with fewer years of production than this. */
+export const LIFECYCLE_MIN_YEARS = BACKEND_RULES.minLifecycleYears
 
 /** The fields offered to highlight on the lifecycles page, from the design: Volve, Statfjord, Troll, Ekofisk, Gullfaks and Johan Sverdrup. */
 export const LIFECYCLE_PICKS = [VOLVE_ID, 43658, 46437, 43506, 43686, 26376286]

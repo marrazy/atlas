@@ -48,7 +48,7 @@ export function YearControl({ year, min, max, onYearChange, producing, notMapped
         >
           {playing ? <PauseIcon aria-hidden="true" className="size-4" /> : <PlayIcon aria-hidden="true" className="size-4" />}
         </button>
-        <div className="flex min-w-0 flex-[1_1_260px] flex-col gap-2">
+        <div className="order-last flex min-w-0 basis-full flex-col gap-2 sm:order-none sm:flex-[1_1_260px] sm:basis-auto">
           <label htmlFor={id} className="text-[13px] font-medium">
             Year
           </label>
@@ -71,7 +71,7 @@ export function YearControl({ year, min, max, onYearChange, producing, notMapped
             <span>{max}</span>
           </div>
         </div>
-        <span aria-hidden="true" className="min-w-[84px] text-right text-[32px] font-bold tracking-heading tabular-nums">
+        <span aria-hidden="true" className="ml-auto min-w-[84px] text-right text-[32px] font-bold tracking-heading tabular-nums sm:ml-0">
           {year}
         </span>
       </div>

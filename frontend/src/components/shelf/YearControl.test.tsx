@@ -109,4 +109,10 @@ describe('YearControl', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Play through the years' }))
     expect(count).toHaveAttribute('aria-live', 'off')
   })
+
+  it('on a phone puts the slider on its own full row under the play button and the year', () => {
+    render(<YearControl year={2025} min={1971} max={2025} onYearChange={() => {}} producing={95} />)
+    const sliderBlock = screen.getByRole('slider', { name: 'Year' }).parentElement!
+    expect(sliderBlock).toHaveClass('order-last', 'basis-full', 'sm:order-none')
+  })
 })

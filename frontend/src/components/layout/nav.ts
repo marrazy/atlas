@@ -1,4 +1,4 @@
-import { ChartLineIcon, LayersIcon, MapIcon, type LucideIcon } from 'lucide-react'
+import { BookOpenIcon, ChartLineIcon, LayersIcon, MapIcon, type LucideIcon } from 'lucide-react'
 import { matchPath } from 'react-router'
 
 export type NavItem = {
@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Shelf map', icon: MapIcon, end: true },
   { to: '/fields', label: 'Field deep dive', icon: ChartLineIcon },
   { to: '/lifecycles', label: 'Field lifecycles', icon: LayersIcon },
+  { to: '/methods', label: 'Methods', icon: BookOpenIcon },
 ]
 
 export const NOT_FOUND_LABEL = 'Page not found'

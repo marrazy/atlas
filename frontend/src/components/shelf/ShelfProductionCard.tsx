@@ -5,6 +5,7 @@ import { ChartToolButton } from '@/components/charts/ChartToolButton'
 import { EChart, type EChartHandle } from '@/components/charts/EChart'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useCompact } from '@/hooks/use-compact'
 import type { ShelfSummary } from '@/lib/api/types'
 import type { ApiState } from '@/lib/api/use-api'
 import { CHART_COLOURS } from '@/lib/charts/colours'
@@ -30,7 +31,11 @@ type Props = {
 
 export function ShelfProductionCard({ shelf, year = null }: Props) {
   const chart = useRef<EChartHandle>(null)
-  const option = useMemo(() => (shelf.status === 'ready' ? shelfOption(shelf.data, year) : null), [shelf, year])
+  const compact = useCompact()
+  const option = useMemo(
+    () => (shelf.status === 'ready' ? shelfOption(shelf.data, year, compact) : null),
+    [shelf, year, compact],
+  )
 
   const actions = option && (
     <ChartToolButton

@@ -26,7 +26,7 @@ type Series = {
   symbol?: string
   silent: boolean
   lineStyle: { width: number; color: string; type?: number[] }
-  endLabel?: { formatter: string; color: string; backgroundColor: string }
+  endLabel?: { show: boolean; formatter: string; color: string; backgroundColor: string }
 }
 const seriesOf = (option: ReturnType<typeof lifecycleOption>) => option.series as Series[]
 
@@ -125,5 +125,15 @@ describe('describeLifecycles', () => {
 describe('percent', () => {
   it('rounds a share to a whole percent', () => {
     expect([percent(0.7764), percent(1), percent(0)]).toEqual(['78%', '100%', '0%'])
+  })
+})
+
+describe('lifecycleOption on a phone', () => {
+  it('drops the line end names and their wide margin, so the lines use the whole width', () => {
+    const wide = lifecycleOption(set, volve)
+    const phone = lifecycleOption(set, volve, true)
+    expect([wide.grid.right, phone.grid.right]).toEqual([110, 12])
+    expect(seriesOf(phone).flatMap((s) => (s.endLabel ? [s.endLabel.show] : []))).toEqual([false, false])
+    expect(seriesOf(wide).flatMap((s) => (s.endLabel ? [s.endLabel.show] : []))).toEqual([true, true])
   })
 })

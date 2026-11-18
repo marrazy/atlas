@@ -110,3 +110,13 @@ describe('shelfTooltip', () => {
     expect(shelfTooltip(shelf.years)([{ name: '1960' }])).toBe('')
   })
 })
+
+describe('shelfOption on a phone', () => {
+  const peakLabel = (o: ReturnType<typeof shelfOption>) =>
+    (o.series[1].markPoint.data[2] as { label: { position: string; offset: number[] } }).label
+
+  it('puts the peak label left of the pin, so it does not run into the year line at the right edge', () => {
+    expect(peakLabel(shelfOption(shelf))).toMatchObject({ position: 'right', offset: [12, -20] })
+    expect(peakLabel(shelfOption(shelf, null, true))).toMatchObject({ position: 'left', offset: [-12, -20] })
+  })
+})

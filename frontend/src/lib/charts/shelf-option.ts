@@ -64,7 +64,8 @@ function yearLine(year: number | null) {
   }
 }
 
-export function shelfOption(shelf: ShelfSummary, year: number | null = null) {
+/** `compact` is for phone screens, where the peak label goes left of the pin so it does not run into the year line. */
+export function shelfOption(shelf: ShelfSummary, year: number | null = null, compact = false) {
   const years = shelf.years
   const labels = areaLabelPoints(years)
   const axisText = { color: C.mutedForeground, fontFamily: F.mono, fontSize: 11 }
@@ -155,8 +156,8 @@ export function shelfOption(shelf: ShelfSummary, year: number | null = null) {
               symbolSize: 0,
               label: {
                 show: true,
-                position: 'right',
-                offset: [12, -20],
+                position: compact ? ('left' as const) : ('right' as const),
+                offset: compact ? [-12, -20] : [12, -20],
                 formatter: `Peak ${shelf.peak_year}, ${formatVolume(shelf.peak_oe_net_msm3)}`,
                 color: C.foreground,
                 fontFamily: F.sans,

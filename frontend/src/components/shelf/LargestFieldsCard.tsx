@@ -18,6 +18,8 @@ type Props = {
 export function LargestFieldsCard({ fields, until }: Props) {
   const head = 'h-10 text-[13px] text-muted-foreground'
   const cell = 'h-11 py-0 text-[13px]'
+  // on a phone the table keeps the field, its product and its total, and the field's page has the rest
+  const wide = 'hidden sm:table-cell'
 
   return (
     <ChartCard
@@ -42,9 +44,9 @@ export function LargestFieldsCard({ fields, until }: Props) {
             <TableRow className="hover:bg-transparent">
               <TableHead className={head}>Field</TableHead>
               <TableHead className={head}>Main product</TableHead>
-              <TableHead className={head}>First production</TableHead>
-              <TableHead className={head}>Operator</TableHead>
-              <TableHead className={`${head} text-right`}>Million Sm³ o.e.</TableHead>
+              <TableHead className={`${head} ${wide}`}>First production</TableHead>
+              <TableHead className={`${head} ${wide}`}>Operator</TableHead>
+              <TableHead className={`${head} text-right whitespace-normal sm:whitespace-nowrap`}>Million Sm³ o.e.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -53,7 +55,7 @@ export function LargestFieldsCard({ fields, until }: Props) {
                 <TableCell className={`${cell} font-medium`}>
                   <Link
                     to={`/fields/${f.field_id}`}
-                    className="rounded-sm underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="inline-block rounded-sm py-1 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     {f.name}
                   </Link>
@@ -61,8 +63,8 @@ export function LargestFieldsCard({ fields, until }: Props) {
                 <TableCell className={cell}>
                   <ProductBadge product={f.main_product} />
                 </TableCell>
-                <TableCell className={`${cell} font-mono text-muted-foreground`}>{f.first_production_year}</TableCell>
-                <TableCell className={`${cell} text-muted-foreground`}>{f.operator ?? 'Not in the data'}</TableCell>
+                <TableCell className={`${cell} ${wide} font-mono text-muted-foreground`}>{f.first_production_year}</TableCell>
+                <TableCell className={`${cell} ${wide} text-muted-foreground`}>{f.operator ?? 'Not in the data'}</TableCell>
                 <TableCell className={`${cell} text-right font-mono tabular-nums`}>
                   {formatNumber(f.cum_oe_net_msm3)}
                 </TableCell>

@@ -15,6 +15,8 @@ type DeclineChartInput = {
   result: DeclineResult
   /** The last month of production, marked as the shutdown when the field has shut down. */
   shutDown: YearMonth | null
+  /** For phone screens, where the axis title would run into the shut down label. The legend gives the unit. */
+  compact?: boolean
 }
 
 const point = (month: YearMonth, value: number): Point => [monthStart(month), value]
@@ -33,7 +35,7 @@ export function describeDecline({ fieldName, window, result }: DeclineChartInput
 }
 
 export function declineOption(input: DeclineChartInput) {
-  const { months, window, result, shutDown } = input
+  const { months, window, result, shutDown, compact = false } = input
   const from = chartStart(window, months)
   const shown = months.filter((m) => m.month >= from)
   const inWindow = (m: YearMonth) => m >= window.start && m <= window.end
@@ -80,7 +82,7 @@ export function declineOption(input: DeclineChartInput) {
     },
     yAxis: {
       type: 'value' as const,
-      name: 'Oil rate, Sm³/day',
+      name: compact ? '' : 'Oil rate, Sm³/day',
       nameTextStyle: { ...mutedLabel, align: 'left' as const },
       nameGap: 12,
       min: 0,

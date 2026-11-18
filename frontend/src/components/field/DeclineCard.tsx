@@ -5,6 +5,7 @@ import { EChart } from '@/components/charts/EChart'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useCompact } from '@/hooks/use-compact'
 import { fitDecline } from '@/lib/api/client'
 import type { DeclineModel, DeclineResult, FieldDetail, ProductionMonth } from '@/lib/api/types'
 import { useApi } from '@/lib/api/use-api'
@@ -108,10 +109,11 @@ function DeclineBody({ field, months, window, model }: BodyProps) {
   const fit = useApi(`decline:${field.field_id}:${window.start}:${window.end}:${model}`, (signal) =>
     fitDecline(request, { signal }),
   )
+  const compact = useCompact()
   const shutDown = field.status === 'Shut down' ? months[months.length - 1].month : null
   const option = useMemo(
-    () => (fit.status === 'ready' ? declineOption({ fieldName: field.name, months, window, result: fit.data, shutDown }) : null),
-    [fit, field.name, months, window, shutDown],
+    () => (fit.status === 'ready' ? declineOption({ fieldName: field.name, months, window, result: fit.data, shutDown, compact }) : null),
+    [fit, field.name, months, window, shutDown, compact],
   )
 
   if (fit.status === 'error') return <ErrorNotice message={fit.message} onRetry={fit.retry} />

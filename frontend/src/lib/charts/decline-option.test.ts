@@ -112,3 +112,10 @@ describe('decline tooltip', () => {
     )
   })
 })
+
+describe('declineOption on a phone', () => {
+  it('leaves out the axis title, which would run into the shut down label, since the legend gives the unit', () => {
+    expect(option.yAxis.name).toBe('Oil rate, Sm³/day')
+    expect(declineOption({ ...input(), compact: true }).yAxis.name).toBe('')
+  })
+})

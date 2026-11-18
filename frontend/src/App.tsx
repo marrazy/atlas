@@ -8,6 +8,7 @@ import { DEFAULT_FIELD_ID } from '@/config'
 const ShelfMapPage = lazy(() => import('@/pages/ShelfMapPage').then((m) => ({ default: m.ShelfMapPage })))
 const FieldPage = lazy(() => import('@/pages/FieldPage').then((m) => ({ default: m.FieldPage })))
 const LifecyclesPage = lazy(() => import('@/pages/LifecyclesPage').then((m) => ({ default: m.LifecyclesPage })))
+const MethodsPage = lazy(() => import('@/pages/MethodsPage').then((m) => ({ default: m.MethodsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 
 export function AppRoutes() {
@@ -18,6 +19,7 @@ export function AppRoutes() {
         <Route path="fields" element={<Navigate to={`/fields/${DEFAULT_FIELD_ID}`} replace />} />
         <Route path="fields/:fieldId" element={<FieldPage />} />
         <Route path="lifecycles" element={<LifecyclesPage />} />
+        <Route path="methods" element={<MethodsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

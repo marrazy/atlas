@@ -40,12 +40,16 @@ export function lifecycleTooltip(set: LifecycleSet, highlighted: Lifecycle | nul
   }
 }
 
-export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null) {
+/**
+ * `compact` is for phone screens. The names at the line ends need a wide empty margin on the right, so there
+ * they are left out and the legend names the lines instead.
+ */
+export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null, compact = false) {
   const axisText = { color: C.mutedForeground, fontFamily: F.mono, fontSize: 11 }
   const oldest = Math.max(0, ...set.fields.flatMap((f) => f.series.map(([age]) => age)))
   // a name at the end of a line, on a small dark box so it can be read over the other lines
   const endLabel = (text: string) => ({
-    show: true,
+    show: !compact,
     formatter: text,
     color: C.foreground,
     backgroundColor: C.background,
@@ -102,7 +106,7 @@ export function lifecycleOption(set: LifecycleSet, highlighted: Lifecycle | null
     animationDuration: 400,
     aria: { enabled: true, label: { description: describeLifecycles(set, highlighted) } },
     textStyle: { fontFamily: F.sans, color: C.foreground },
-    grid: { left: 52, right: 110, top: 20, bottom: 44 },
+    grid: { left: compact ? 40 : 52, right: compact ? 12 : 110, top: 20, bottom: 44 },
     xAxis: {
       type: 'value' as const,
       min: 0,

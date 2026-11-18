@@ -5,6 +5,7 @@ import { ChartToolButton } from '@/components/charts/ChartToolButton'
 import { EChart, type EChartHandle } from '@/components/charts/EChart'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useCompact } from '@/hooks/use-compact'
 import type { LifecycleSet } from '@/lib/api/types'
 import type { ApiState } from '@/lib/api/use-api'
 import { CHART_COLOURS } from '@/lib/charts/colours'
@@ -39,7 +40,8 @@ export function LifecycleCard({ lifecycles, highlightId, lastFullYear }: Props) 
   const [areaZoom, setAreaZoom] = useState(false)
   const set = lifecycles.status === 'ready' ? lifecycles.data : null
   const highlighted = set ? findLifecycle(set, highlightId) : null
-  const option = useMemo(() => (set ? lifecycleOption(set, highlighted) : null), [set, highlighted])
+  const compact = useCompact()
+  const option = useMemo(() => (set ? lifecycleOption(set, highlighted, compact) : null), [set, highlighted, compact])
 
   const instance = () => chart.current?.getEchartsInstance()
 
